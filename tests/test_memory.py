@@ -44,3 +44,28 @@ def test_memory_clear():
     # 새로 가져오면 비어있어야 함
     new_history = memory_manager.get_session_history(session_id)
     assert len(new_history.messages) == 0
+
+def test_memory_sliding_window():
+    """메시지 개수 제한(Sliding Window) 기능 테스트"""
+    session_id = "window-test"
+    from libs.core.settings import settings
+    
+    # 설정된 최대치보다 많이 입력 (예: 10개 제한인데 15개 입력)
+    max_msgs = settings.MEMORY_MAX_MESSAGES
+    history = memory_manager.get_session_history(session_id)
+    
+    for i in range(max_msgs + 5):
+        history.add_user_message(f"Message {i}")
+    
+    # 다시 가져올 때 트리밍이 발생해야 함
+    trimmed_history = memory_manager.get_session_history(session_id)
+    
+    # 1. 개수가 max_msgs를 초과하지 않아야 함
+    assert len(trimmed_history.messages) <= max_msgs
+    
+    # 2. 가장 마지막 메시지가 살아남아 있어야 함 (가장 최근 것 유지)
+    assert trimmed_history.messages[-1].content == f"Message {max_msgs + 4}"
+    
+    # 3. 가장 오래된 메시지(Message 0)는 삭제되어야 함
+    contents = [m.content for m in trimmed_history.messages]
+    assert "Message 0" not in contents

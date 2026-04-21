@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import HTTPException, Security, Depends
+from fastapi import HTTPException, Security, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from authlib.integrations.starlette_client import OAuth
 from jose import jwt, JWTError
@@ -20,7 +20,7 @@ oauth.register(
     }
 )
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 class UserInfo:
     """사용자 정보 및 권한을 담는 클래스"""
@@ -31,42 +31,46 @@ class UserInfo:
         self.is_admin = "Admin" in groups
         self.is_user = "User" in groups or self.is_admin
 
-async def get_current_user(cred: HTTPAuthorizationCredentials = Security(security)) -> UserInfo:
+async def get_current_user(
+    request: Request,
+    cred: Optional[HTTPAuthorizationCredentials] = Security(security)
+) -> UserInfo:
     """
-    Bearer 토큰을 검증하고 사용자 정보를 반환하는 FastAPI Dependency.
+    Bearer 토큰 또는 세션을 통해 사용자 정보를 반환하는 FastAPI Dependency.
     """
-    token = cred.credentials
-    try:
-        # 1. IDP의 JWKS(공개키)를 가져와 서명 검증
-        # (실제 구현 시에는 JWKS를 캐싱하여 성능을 최적화해야 합니다)
-        jwks_url = f"{settings.OIDC_ISSUER}/oauth/jwks"
-        async with httpx.AsyncClient(verify=False) as client: # 내부망 .local 대응을 위해 verify=False 처리 가능성 고려
-            response = await client.get(jwks_url)
-            jwks = response.json()
+    # 1. Bearer 토큰 확인
+    if cred and cred.credentials and cred.credentials != "null":
+        token = cred.credentials
+        try:
+            jwks_url = f"{settings.OIDC_ISSUER}/oauth/jwks"
+            async with httpx.AsyncClient(verify=False) as client:
+                response = await client.get(jwks_url)
+                jwks = response.json()
 
-        # 2. 토큰 디코딩 및 검증 (RS256)
-        payload = jwt.decode(
-            token,
-            jwks,
-            algorithms=["RS256"],
-            audience=settings.OIDC_CLIENT_ID,
-            issuer=settings.OIDC_ISSUER
+            payload = jwt.decode(
+                token, jwks, algorithms=["RS256"],
+                audience=settings.OIDC_CLIENT_ID, issuer=settings.OIDC_ISSUER
+            )
+            return UserInfo(
+                sub=payload.get("sub"),
+                username=payload.get("preferred_username"),
+                groups=payload.get("groups", [])
+            )
+        except Exception:
+            pass # 토큰 검증 실패 시 세션 확인으로 넘어감
+
+    # 2. 세션 확인 (브라우저 UI용)
+    user_session = request.session.get('user')
+    if user_session:
+        print(f"DEBUG: Session found for user: {user_session.get('preferred_username')}")
+        return UserInfo(
+            sub=user_session.get("sub"),
+            username=user_session.get("preferred_username"),
+            groups=user_session.get("groups", [])
         )
 
-        # 3. 필수 클레임 추출
-        sub = payload.get("sub")
-        username = payload.get("preferred_username")
-        groups = payload.get("groups", [])
-
-        if not sub or not username:
-            raise HTTPException(status_code=401, detail="Invalid token claims")
-
-        return UserInfo(sub=sub, username=username, groups=groups)
-
-    except JWTError as e:
-        raise HTTPException(status_code=401, detail=f"Token verification failed: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Auth error: {str(e)}")
+    print("DEBUG: No session or bearer token found")
+    raise HTTPException(status_code=401, detail="Authentication required")
 
 def admin_required(user: UserInfo = Depends(get_current_user)):
     """관리자 권한 확인을 위한 Dependency"""

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>리발소 AI 에이전트</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --sidebar-color: #1e293b;
+            --accent-color: #38bdf8;
+            --text-color: #f1f5f9;
+            --msg-user: #0369a1;
+            --msg-ai: #334155;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 사이드바 */
+        #sidebar {
+            width: 260px;
+            background-color: var(--sidebar-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            border-right: 1px solid #334155;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 30px;
+            color: var(--accent-color);
+        }
+
+        .user-profile {
+            margin-top: auto;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+
+        .admin-badge {
+            display: inline-block;
+            background: #ef4444;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            margin-top: 5px;
+        }
+
+        /* 채팅 영역 */
+        #chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px 20%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 15px 20px;
+            border-radius: 15px;
+            line-height: 1.6;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .message.user {
+            align-self: flex-end;
+            background-color: var(--msg-user);
+        }
+
+        .message.ai {
+            align-self: flex-start;
+            background-color: var(--msg-ai);
+        }
+
+        /* 입력창 */
+        #input-container {
+            padding: 30px 20%;
+            background: linear-gradient(transparent, var(--bg-color) 20%);
+        }
+
+        .input-box {
+            display: flex;
+            background: #334155;
+            padding: 10px 20px;
+            border-radius: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 1rem;
+            padding: 10px;
+            outline: none;
+        }
+
+        button {
+            background: var(--accent-color);
+            border: none;
+            color: #0f172a;
+            font-weight: 600;
+            padding: 10px 25px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover { transform: scale(1.05); }
+
+        .loading {
+            font-size: 0.8rem;
+            color: var(--accent-color);
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <div class="logo">리발소 AI</div>
+        <div id="login-section">
+            <button onclick="location.href='/login'" style="width:100%">로그인</button>
+        </div>
+        <div class="user-profile" id="user-info" style="display:none">
+            <div id="username">사용자명</div>
+            <div id="role-badge" class="admin-badge">Admin</div>
+        </div>
+    </div>
+
+    <div id="chat-container">
+        <!-- 시스템 프롬프트 설정 영역 -->
+        <div id="system-prompt-config" style="padding: 10px 20%; background: #1e293b; border-bottom: 1px solid #334155;">
+            <div style="font-size: 0.8rem; color: var(--accent-color); margin-bottom: 5px; cursor: pointer;" onclick="toggleSystemPrompt()">
+                ⚙️ 시스템 프롬프트 설정 (클릭하여 열기/닫기)
+            </div>
+            <textarea id="system-prompt-input" style="display:none; width: 100%; background: #0f172a; color: white; border: 1px solid #475569; border-radius: 5px; padding: 10px; font-family: inherit; resize: vertical;" rows="3" placeholder="여기에 사용자 정의 시스템 프롬프트를 입력하세요..."></textarea>
+        </div>
+
+        <div id="messages">
+            <div class="message ai">반가워요! 무엇을 도와드릴까요?</div>
+        </div>
+        <div id="input-container">
+            <div class="input-box">
+                <select id="model-select" style="background:transparent; color:white; border:none; border-right:1px solid #475569; margin-right:10px; outline:none; cursor:pointer;">
+                    <option value="chat" style="background:#1e293b;">GPT-4o</option>
+                    <option value="reasoning" style="background:#1e293b;">o4-mini</option>
+                </select>
+                <input type="text" id="user-input" placeholder="메시지를 입력하세요..." onkeypress="if(event.keyCode==13) sendMessage()">
+                <button onclick="sendMessage()">전송</button>
+            </div>
+            <div id="loading" class="loading">AI가 생각 중...</div>
+        </div>
+    </div>
+
+    <script>
+        let currentAiMessage = null;
+
+        function toggleSystemPrompt() {
+            const input = document.getElementById('system-prompt-input');
+            if (input.style.display === 'none' || input.style.display === '') {
+                input.style.display = 'block';
+            } else {
+                input.style.display = 'none';
+            }
+            console.log('System prompt toggled:', input.style.display);
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const modelSelect = document.getElementById('model-select');
+            const systemPromptInput = document.getElementById('system-prompt-input');
+            
+            const message = input.value.trim();
+            const modelType = modelSelect.value;
+            const systemPrompt = systemPromptInput.value.trim();
+
+            if (!message) return;
+
+            // 사용자 메시지 추가
+            appendMessage('user', message);
+            input.value = '';
+            
+            // 로딩 표시
+            document.getElementById('loading').style.display = 'block';
+
+            // 스트리밍 요청
+            try {
+                const url = `/chat?message=${encodeURIComponent(message)}&model_type=${modelType}` + 
+                            (systemPrompt ? `&system_prompt=${encodeURIComponent(systemPrompt)}` : '');
+                
+                const response = await fetch(url, {
+                    method: 'POST'
+                });
+
+                if (response.status === 401) {
+                    alert('로그인이 필요합니다.');
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                // 새로운 AI 메시지 영역 생성
+                currentAiMessage = appendMessage('ai', '');
+                
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.replace('data: ', '');
+                            if (dataStr === '[DONE]') continue;
+                            try {
+                                const data = JSON.parse(dataStr);
+                                currentAiMessage.innerText += data.content;
+                                // 스크롤 하단 이동
+                                const messagesDiv = document.getElementById('messages');
+                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                            } catch (e) {}
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                appendMessage('ai', '에러가 발생했습니다.');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function appendMessage(type, text) {
+            const messagesDiv = document.getElementById('messages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${type}`;
+            msgDiv.innerText = text;
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return msgDiv;
+        }
+
+        // 페이지 로드 시 로그인 상태 확인
+        window.onload = checkLogin;
+
+        async function checkLogin() {
+            try {
+                const response = await fetch('/user/me');
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById('login-section').style.display = 'none';
+                    document.getElementById('user-info').style.display = 'block';
+                    document.getElementById('username').innerText = user.preferred_username;
+                    
+                    const is_admin = user.groups && user.groups.includes('Admin');
+                    document.getElementById('role-badge').innerText = is_admin ? 'Admin' : 'User';
+                    document.getElementById('role-badge').style.background = is_admin ? '#ef4444' : '#10b981';
+                }
+            } catch (err) {
+                console.log('Not logged in');
+            }
+        }
+    </script>
+</body>
+</html>
