@@ -17,6 +17,8 @@ services:
   llm-agent:
     image: llm-agent:latest
     container_name: llm-agent
+    ports:
+      - "28000:8000" # 외부 Nginx가 접근할 수 있도록 포트 노출 (8000 충돌 시 28000 등 미사용 포트 지정)
     env_file:
       - .env
     extra_hosts:
