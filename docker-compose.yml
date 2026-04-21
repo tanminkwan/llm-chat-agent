@@ -9,6 +9,9 @@ services:
       - ./certs:/etc/nginx/certs:ro
     depends_on:
       - llm-agent
+    extra_hosts:
+      - "idp.mwm.local:host-gateway"
+      - "llm-agent.mwm.local:host-gateway"
     restart: always
 
   llm-agent:
@@ -16,6 +19,9 @@ services:
     container_name: llm-agent
     env_file:
       - .env
+    extra_hosts:
+      - "idp.mwm.local:host-gateway"
+      - "llm-agent.mwm.local:host-gateway"
     depends_on:
       - qdrant
     restart: always

@@ -28,15 +28,11 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(static_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-@app.get("/")
-async def root():
-    """메인 채팅 화면 반환"""
-    return FileResponse(os.path.join(static_dir, "index.html"))
-
 # --- 인증 관련 엔드포인트 ---
 
-@app.get("/login")
+@app.get("/auth/login")
 async def login(request: Request):
+    """IDP 로그인 페이지로 리다이렉트"""
     redirect_uri = settings.OIDC_REDIRECT_URI
     return await oauth.create_client('mwm-idp').authorize_redirect(request, redirect_uri)
 
@@ -48,14 +44,41 @@ async def auth_callback(request: Request):
     user_info = token.get('userinfo')
     
     if user_info:
-        print(f"DEBUG: Saving user to session: {user_info.get('preferred_username')}")
+        groups = user_info.get('groups', [])
+        print(f"DEBUG: User groups: {groups}")
+        
+        # 권한 확인: Admin 또는 User 그룹이 하나도 없는 경우
+        if not any(role in groups for role in ["Admin", "User"]):
+            print("DEBUG: Access denied - No valid role found")
+            return RedirectResponse(url="/static/unauthorized.html")
+
         # 세션에 사용자 정보 저장
         request.session['user'] = user_info
-    else:
-        print("DEBUG: No user_info found in token")
-        
-    # 메인 화면으로 리다이렉트
-    return RedirectResponse(url="/")
+        return RedirectResponse(url="/")
+    
+    print("DEBUG: No user_info found in token")
+    return RedirectResponse(url="/static/unauthorized.html")
+
+@app.get("/auth/logout")
+async def logout(request: Request):
+    """세션 초기화 및 로그아웃"""
+    request.session.clear()
+    return RedirectResponse(url="/auth/login")
+
+@app.get("/")
+async def root(request: Request):
+    """메인 화면 접근 시 권한 체크"""
+    user = request.session.get('user')
+    if not user:
+        return RedirectResponse(url="/auth/login")
+    
+    groups = user.get('groups', [])
+    if not any(role in groups for role in ["Admin", "User"]):
+        return RedirectResponse(url="/static/unauthorized.html")
+    
+    # 권한이 있으면 index.html 제공
+    from fastapi.responses import FileResponse
+    return FileResponse("apps/api/static/index.html")
 
 @app.get("/user/me")
 async def get_me(request: Request):
@@ -69,13 +92,15 @@ async def get_me(request: Request):
 
 @app.post("/chat")
 async def chat(
-    request: Request,
     message: str,
-    session_id: Optional[str] = None,
-    model_type: str = "chat",
-    system_prompt: Optional[str] = None, # 사용자 정의 시스템 프롬프트 추가
-    user: UserInfo = Depends(get_current_user)
+    model_type: str = "chat", # "chat" or "reasoning"
+    system_prompt: Optional[str] = None,
+    user: UserInfo = Depends(get_current_user),
+    session_id: Optional[str] = None
 ):
+    # API 레벨에서도 최종 권한 확인
+    if not any(role in user.groups for role in ["Admin", "User"]):
+        raise HTTPException(status_code=403, detail="사용 권한이 없습니다. 관리자에게 문의하세요.")
     """
     메모리, 권한 프롬프트, 모델 선택이 적용된 스트리밍 채팅 API
     """

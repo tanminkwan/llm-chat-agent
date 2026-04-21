@@ -143,11 +143,14 @@
     <div id="sidebar">
         <div class="logo">리발소 AI</div>
         <div id="login-section">
-            <button onclick="location.href='/login'" style="width:100%">로그인</button>
+            <button onclick="location.href='/auth/login'" style="width:100%">로그인</button>
         </div>
         <div class="user-profile" id="user-info" style="display:none">
             <div id="username">사용자명</div>
-            <div id="role-badge" class="admin-badge">Admin</div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div id="role-badge" class="admin-badge">Admin</div>
+                <a href="/auth/logout" style="color: var(--accent-color); font-size: 0.75rem; text-decoration: none;">로그아웃</a>
+            </div>
         </div>
     </div>
 
