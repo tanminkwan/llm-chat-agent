@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+build/
+dist/
+*.egg-info/
+
+# Environment
+.env
+.env.*
+
+# Certificates
+certs/
+
+# IDE
+.vscode/
+.idea/
+
+# Local data
+data/
+*.db
