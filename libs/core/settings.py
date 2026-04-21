@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     EMBEDDING_BASE_URL: Optional[str] = None
     EMBEDDING_MODEL: str = "text-embedding-3-small"
-    EMBEDDING_API_KEY: str = "dummy"
+    EMBEDDING_API_KEY: Optional[str] = None
     EMBEDDING_DIM: int = 1536
 
     # Qdrant Settings
