@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+Dockerfile
+docker-compose.yml
+qdrant_data/
+tests/
+docs/
+README.md

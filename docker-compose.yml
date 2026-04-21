@@ -1,0 +1,35 @@
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "21443:443" # 호스트의 21443 포트를 443으로 전달
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - llm-agent
+    restart: always
+
+  llm-agent:
+    image: llm-agent:latest
+    container_name: llm-agent
+    env_file:
+      - .env
+    depends_on:
+      - qdrant
+    restart: always
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ./qdrant_data:/qdrant/storage
+    restart: always
+
+networks:
+  default:
+    name: llm-network

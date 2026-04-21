@@ -117,11 +117,10 @@ async def chat(
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 if __name__ == "__main__":
+    # Nginx SSL Termination 환경에 맞춰 HTTP(8000)로 기동
     uvicorn.run(
-        "main:app", 
+        "apps.api.main:app", 
         host="0.0.0.0", 
-        port=21443,
-        ssl_keyfile="certs/key.pem",
-        ssl_certfile="certs/cert.pem",
-        reload=True
+        port=8000,
+        reload=settings.DEBUG
     )
