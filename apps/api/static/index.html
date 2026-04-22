@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>리발소 AI 에이전트</title>
+    <title id="page-title">AI 에이전트</title>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -82,7 +83,17 @@
             animation: fadeIn 0.3s ease;
         }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
         .message.user {
             align-self: flex-end;
@@ -105,7 +116,7 @@
             background: #334155;
             padding: 10px 20px;
             border-radius: 30px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
 
         input {
@@ -129,7 +140,9 @@
             transition: transform 0.2s;
         }
 
-        button:hover { transform: scale(1.05); }
+        button:hover {
+            transform: scale(1.05);
+        }
 
         .loading {
             font-size: 0.8rem;
@@ -139,9 +152,10 @@
         }
     </style>
 </head>
+
 <body>
     <div id="sidebar">
-        <div class="logo">리발소 AI</div>
+        <div class="logo" id="app-logo">AI 에이전트</div>
         <div id="login-section">
             <button onclick="location.href='/auth/login'" style="width:100%">로그인</button>
         </div>
@@ -149,18 +163,23 @@
             <div id="username">사용자명</div>
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div id="role-badge" class="admin-badge">Admin</div>
-                <a href="/auth/logout" style="color: var(--accent-color); font-size: 0.75rem; text-decoration: none;">로그아웃</a>
+                <a href="/auth/logout"
+                    style="color: var(--accent-color); font-size: 0.75rem; text-decoration: none;">로그아웃</a>
             </div>
         </div>
     </div>
 
     <div id="chat-container">
         <!-- 시스템 프롬프트 설정 영역 -->
-        <div id="system-prompt-config" style="padding: 10px 20%; background: #1e293b; border-bottom: 1px solid #334155;">
-            <div style="font-size: 0.8rem; color: var(--accent-color); margin-bottom: 5px; cursor: pointer;" onclick="toggleSystemPrompt()">
+        <div id="system-prompt-config"
+            style="padding: 10px 20%; background: #1e293b; border-bottom: 1px solid #334155;">
+            <div style="font-size: 0.8rem; color: var(--accent-color); margin-bottom: 5px; cursor: pointer;"
+                onclick="toggleSystemPrompt()">
                 ⚙️ 시스템 프롬프트 설정 (클릭하여 열기/닫기)
             </div>
-            <textarea id="system-prompt-input" style="display:none; width: 100%; background: #0f172a; color: white; border: 1px solid #475569; border-radius: 5px; padding: 10px; font-family: inherit; resize: vertical;" rows="3" placeholder="여기에 사용자 정의 시스템 프롬프트를 입력하세요..."></textarea>
+            <textarea id="system-prompt-input"
+                style="display:none; width: 100%; background: #0f172a; color: white; border: 1px solid #475569; border-radius: 5px; padding: 10px; font-family: inherit; resize: vertical;"
+                rows="3" placeholder="여기에 사용자 정의 시스템 프롬프트를 입력하세요..."></textarea>
         </div>
 
         <div id="messages">
@@ -168,11 +187,12 @@
         </div>
         <div id="input-container">
             <div class="input-box">
-                <select id="model-select" style="background:transparent; color:white; border:none; border-right:1px solid #475569; margin-right:10px; outline:none; cursor:pointer;">
-                    <option value="chat" style="background:#1e293b;">GPT-4o</option>
-                    <option value="reasoning" style="background:#1e293b;">o4-mini</option>
+                <select id="model-select"
+                    style="background:transparent; color:white; border:none; border-right:1px solid #475569; margin-right:10px; outline:none; cursor:pointer;">
+                    <!-- 모델 목록은 JS에서 .env 설정을 기반으로 동적 생성됨 -->
                 </select>
-                <input type="text" id="user-input" placeholder="메시지를 입력하세요..." onkeypress="if(event.keyCode==13) sendMessage()">
+                <input type="text" id="user-input" placeholder="메시지를 입력하세요..."
+                    onkeypress="if(event.keyCode==13) sendMessage()">
                 <button onclick="sendMessage()">전송</button>
             </div>
             <div id="loading" class="loading">AI가 생각 중...</div>
@@ -196,7 +216,7 @@
             const input = document.getElementById('user-input');
             const modelSelect = document.getElementById('model-select');
             const systemPromptInput = document.getElementById('system-prompt-input');
-            
+
             const message = input.value.trim();
             const modelType = modelSelect.value;
             const systemPrompt = systemPromptInput.value.trim();
@@ -206,15 +226,15 @@
             // 사용자 메시지 추가
             appendMessage('user', message);
             input.value = '';
-            
+
             // 로딩 표시
             document.getElementById('loading').style.display = 'block';
 
             // 스트리밍 요청
             try {
-                const url = `/chat?message=${encodeURIComponent(message)}&model_type=${modelType}` + 
-                            (systemPrompt ? `&system_prompt=${encodeURIComponent(systemPrompt)}` : '');
-                
+                const url = `/chat?message=${encodeURIComponent(message)}&model_type=${modelType}` +
+                    (systemPrompt ? `&system_prompt=${encodeURIComponent(systemPrompt)}` : '');
+
                 const response = await fetch(url, {
                     method: 'POST'
                 });
@@ -226,17 +246,17 @@
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
-                
+
                 // 새로운 AI 메시지 영역 생성
                 currentAiMessage = appendMessage('ai', '');
-                
+
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
-                    
+
                     const chunk = decoder.decode(value);
                     const lines = chunk.split('\n');
-                    
+
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
                             const dataStr = line.replace('data: ', '');
@@ -247,7 +267,7 @@
                                 // 스크롤 하단 이동
                                 const messagesDiv = document.getElementById('messages');
                                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                            } catch (e) {}
+                            } catch (e) { }
                         }
                     }
                 }
@@ -269,8 +289,32 @@
             return msgDiv;
         }
 
-        // 페이지 로드 시 로그인 상태 확인
-        window.onload = checkLogin;
+        // 페이지 로드 시 로그인 상태 및 설정 확인
+        window.onload = () => {
+            checkLogin();
+            loadConfig();
+        };
+
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    
+                    // 앱 이름 설정
+                    document.title = config.app_name;
+                    document.getElementById('app-logo').innerText = config.app_name;
+
+                    const modelSelect = document.getElementById('model-select');
+                    modelSelect.innerHTML = `
+                        <option value="chat" style="background:#1e293b;">${config.chat_label} (${config.chat_model})</option>
+                        <option value="reasoning" style="background:#1e293b;">${config.reasoning_label} (${config.reasoning_model})</option>
+                    `;
+                }
+            } catch (err) {
+                console.error('설정을 불러오는데 실패했습니다:', err);
+            }
+        }
 
         async function checkLogin() {
             try {
@@ -280,7 +324,7 @@
                     document.getElementById('login-section').style.display = 'none';
                     document.getElementById('user-info').style.display = 'block';
                     document.getElementById('username').innerText = user.preferred_username;
-                    
+
                     const is_admin = user.groups && user.groups.includes('Admin');
                     document.getElementById('role-badge').innerText = is_admin ? 'Admin' : 'User';
                     document.getElementById('role-badge').style.background = is_admin ? '#ef4444' : '#10b981';
@@ -291,4 +335,5 @@
         }
     </script>
 </body>
+
 </html>

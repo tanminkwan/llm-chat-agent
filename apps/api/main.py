@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import FastAPI, Depends, Request, HTTPException
+from fastapi import FastAPI, Depends, Request, HTTPException, Query
 from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -88,15 +88,26 @@ async def get_me(request: Request):
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user
 
+@app.get("/api/config")
+async def get_config():
+    """UI 설정을 위한 정보를 .env에서 동적으로 가져옴 (하드코딩 방지)"""
+    return {
+        "app_name": settings.APP_NAME,
+        "chat_model": settings.CHAT_LLM_MODEL,
+        "chat_label": settings.CHAT_LLM_LABEL,
+        "reasoning_model": settings.REASONING_LLM_MODEL,
+        "reasoning_label": settings.REASONING_LLM_LABEL
+    }
+
 # --- 채팅 엔드포인트 (Phase 2 핵심) ---
 
 @app.post("/chat")
 async def chat(
-    message: str,
-    model_type: str = "chat", # "chat" or "reasoning"
-    system_prompt: Optional[str] = None,
+    message: str = Query(...),
+    model_type: str = Query("chat"), # "chat" or "reasoning"
+    system_prompt: Optional[str] = Query(None),
     user: UserInfo = Depends(get_current_user),
-    session_id: Optional[str] = None
+    session_id: Optional[str] = Query(None)
 ):
     # API 레벨에서도 최종 권한 확인
     if not any(role in user.groups for role in ["Admin", "User"]):

@@ -12,6 +12,7 @@ services:
     extra_hosts:
       - "idp.mwm.local:host-gateway"
       - "llm-agent.mwm.local:host-gateway"
+      - "host.docker.internal:host-gateway"
     restart: always
 
   llm-agent:
@@ -24,6 +25,7 @@ services:
     extra_hosts:
       - "idp.mwm.local:host-gateway"
       - "llm-agent.mwm.local:host-gateway"
+      - "host.docker.internal:host-gateway"
     depends_on:
       - qdrant
     restart: always

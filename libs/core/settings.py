@@ -17,10 +17,12 @@ class Settings(BaseSettings):
     # LLM Settings
     CHAT_LLM_BASE_URL: Optional[str] = None
     CHAT_LLM_MODEL: str = "gpt-4o"
+    CHAT_LLM_LABEL: str = "일반 대화"
     CHAT_LLM_API_KEY: str
 
     REASONING_LLM_BASE_URL: Optional[str] = None
     REASONING_LLM_MODEL: str = "o4-mini"
+    REASONING_LLM_LABEL: str = "심층 추론"
     REASONING_LLM_API_KEY: str
 
     EMBEDDING_BASE_URL: Optional[str] = None
