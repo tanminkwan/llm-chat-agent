@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>권한 없음 - 리발소 AI 에이전트</title>
+    <title id="page-title">권한 없음</title>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -81,12 +81,30 @@
     <div class="container">
         <div class="icon">⚠️</div>
         <h1>접근 권한이 없습니다</h1>
-        <p>
-            죄송합니다. 현재 계정에는 리발소 AI 에이전트를 사용할 수 있는 적절한 권한이 할당되어 있지 않습니다.
+        <p id="error-msg">
+            죄송합니다. 현재 계정에는 이 서비스를 사용할 수 있는 적절한 권한이 할당되어 있지 않습니다.
         </p>
-        <div class="contact-box">
-            문의사항이 있으시면 <strong>리발소 관리자</strong>에게 권한 할당을 요청하시기 바랍니다.
+        <div class="contact-box" id="contact-info">
+            문의사항이 있으시면 <strong>관리자</strong>에게 권한 할당을 요청하시기 바랍니다.
         </div>
     </div>
+
+    <script>
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    const appTitle = config.app_name + " 서비스";
+                    document.title = "권한 없음 - " + appTitle;
+                    document.getElementById('error-msg').innerText = `죄송합니다. 현재 계정에는 ${appTitle}를 사용할 수 있는 적절한 권한이 할당되어 있지 않습니다.`;
+                    document.getElementById('contact-info').innerHTML = `문의사항이 있으시면 <strong>${config.app_name} 관리자</strong>에게 권한 할당을 요청하시기 바랍니다.`;
+                }
+            } catch (err) {
+                console.error('설정을 불러오는데 실패했습니다:', err);
+            }
+        }
+        window.onload = loadConfig;
+    </script>
 </body>
 </html>

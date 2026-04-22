@@ -302,8 +302,9 @@
                     const config = await response.json();
                     
                     // 앱 이름 설정
-                    document.title = config.app_name;
-                    document.getElementById('app-logo').innerText = config.app_name;
+                    const appTitle = config.app_name + " 서비스";
+                    document.title = appTitle;
+                    document.getElementById('app-logo').innerText = appTitle;
 
                     const modelSelect = document.getElementById('model-select');
                     modelSelect.innerHTML = `
