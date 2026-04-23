@@ -8,13 +8,16 @@ class LLMGateway:
     @staticmethod
     def get_chat_llm(streaming: bool = True, temperature: float = 0.7) -> ChatOpenAI:
         """기본 대화형 LLM 반환"""
-        return ChatOpenAI(
-            model=settings.CHAT_LLM_MODEL,
-            api_key=settings.CHAT_LLM_API_KEY,
-            base_url=settings.CHAT_LLM_BASE_URL,
-            streaming=streaming,
-            temperature=temperature
-        )
+        kwargs = {
+            "model": settings.CHAT_LLM_MODEL,
+            "api_key": settings.CHAT_LLM_API_KEY,
+            "base_url": settings.CHAT_LLM_BASE_URL,
+            "streaming": streaming,
+        }
+        if settings.CHAT_LLM_USE_TEMPERATURE:
+            kwargs["temperature"] = temperature
+            
+        return ChatOpenAI(**kwargs)
 
     @staticmethod
     def get_reasoning_llm(streaming: bool = True, temperature: Optional[float] = None) -> ChatOpenAI:
@@ -25,7 +28,8 @@ class LLMGateway:
             "base_url": settings.REASONING_LLM_BASE_URL,
             "streaming": streaming,
         }
-        if temperature is not None:
+        # 설정에서 허용된 경우에만 temperature 적용
+        if settings.REASONING_LLM_USE_TEMPERATURE and temperature is not None:
             kwargs["temperature"] = temperature
             
         return ChatOpenAI(**kwargs)
@@ -37,5 +41,5 @@ class LLMGateway:
             model=settings.EMBEDDING_MODEL,
             api_key=settings.EMBEDDING_API_KEY,
             base_url=settings.EMBEDDING_BASE_URL,
-            dimensions=settings.EMBEDDING_DIM  # 사용자가 설정한 차원(예: 1024) 적용
+            dimensions=settings.EMBEDDING_DIM
         )

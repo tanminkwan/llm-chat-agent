@@ -5,202 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">AI 에이전트</title>
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --sidebar-color: #1e293b;
-            --accent-color: #38bdf8;
-            --text-color: #f1f5f9;
-            --msg-user: #0369a1;
-            --msg-ai: #334155;
-        }
-
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            display: flex;
-            height: 100vh;
-        }
-
-        /* 사이드바 */
-        #sidebar {
-            width: 260px;
-            background-color: var(--sidebar-color);
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            border-right: 1px solid #334155;
-        }
-
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 30px;
-            color: var(--accent-color);
-        }
-
-        .user-profile {
-            margin-top: auto;
-            padding: 15px;
-            background: #0f172a;
-            border-radius: 10px;
-            font-size: 0.9rem;
-        }
-
-        .admin-badge {
-            display: inline-block;
-            background: #ef4444;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            margin-top: 5px;
-        }
-
-        /* 채팅 영역 */
-        #chat-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-        }
-
-        #messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 40px 20%;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .message {
-            max-width: 80%;
-            padding: 15px 20px;
-            border-radius: 15px;
-            line-height: 1.6;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message.user {
-            align-self: flex-end;
-            background-color: var(--msg-user);
-        }
-
-        .message.ai {
-            align-self: flex-start;
-            background-color: var(--msg-ai);
-        }
-
-        /* 입력창 */
-        #input-container {
-            padding: 30px 20%;
-            background: linear-gradient(transparent, var(--bg-color) 20%);
-        }
-
-        .input-box {
-            display: flex;
-            align-items: flex-end;
-            background: #334155;
-            padding: 5px 20px;
-            border-radius: 24px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        textarea#user-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: white;
-            font-size: 1rem;
-            padding: 10px;
-            outline: none;
-            resize: none;
-            max-height: 200px;
-            font-family: inherit;
-            line-height: 1.5;
-        }
-
-        button {
-            background: var(--accent-color);
-            border: none;
-            color: #0f172a;
-            font-weight: 600;
-            padding: 10px 25px;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-
-        button:hover {
-            transform: scale(1.05);
-        }
-
-        .loading {
-            font-size: 0.8rem;
-            color: var(--accent-color);
-            margin-top: 10px;
-            display: none;
-        }
-
-        .temp-label {
-            font-size: 0.85rem;
-            color: var(--text-color);
-            margin-bottom: 8px;
-            display: block;
-        }
-
-        .temp-control {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: #0f172a;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #334155;
-        }
-
-        input#temperature {
-            width: 50px;
-            background: transparent;
-            border: none;
-            color: var(--accent-color);
-            font-size: 1rem;
-            font-weight: 600;
-            outline: none;
-            text-align: center;
-        }
-
-        .settings-section {
-            margin-top: 30px;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .settings-title {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #64748b;
-            margin-bottom: 15px;
-            font-weight: 700;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
@@ -215,13 +20,22 @@
             <div class="temp-group">
                 <label class="temp-label" for="temperature">Temperature</label>
                 <div class="temp-control">
-                    <input type="range" id="temp-slider" min="0" max="2" step="0.1" value="0.7" style="flex: 1; accent-color: var(--accent-color);" oninput="document.getElementById('temperature').value = this.value">
-                    <input type="number" id="temperature" value="0.7" min="0" max="2" step="0.1" oninput="document.getElementById('temp-slider').value = this.value">
+                    <input type="range" id="temp-slider" min="0" max="2" step="0.1" value="0.7"
+                        style="flex: 1; accent-color: var(--accent-color);"
+                        oninput="document.getElementById('temperature').value = this.value">
+                    <input type="number" id="temperature" value="0.7" min="0" max="2" step="0.1"
+                        oninput="document.getElementById('temp-slider').value = this.value">
                 </div>
                 <div style="font-size: 0.7rem; color: #64748b; margin-top: 8px;">
                     낮을수록 정확하고, 높을수록 창의적입니다.
                 </div>
             </div>
+        </div>
+
+        <div id="admin-panel" style="display:none">
+            <div class="settings-title">Admin Panel</div>
+            <div class="admin-btn" onclick="openAdminModal('collection')">📚 콜렉션 관리</div>
+            <div class="admin-btn" onclick="openAdminModal('domain')">🌐 도메인 관리</div>
         </div>
 
         <div class="user-profile" id="user-info" style="display:none">
@@ -254,7 +68,6 @@
             <div class="input-box">
                 <select id="model-select"
                     style="background:transparent; color:white; border:none; border-right:1px solid #475569; margin-right:10px; outline:none; cursor:pointer;">
-                    <!-- 모델 목록은 JS에서 .env 설정을 기반으로 동적 생성됨 -->
                 </select>
                 <textarea id="user-input" placeholder="메시지를 입력하세요..." rows="1"></textarea>
                 <button onclick="sendMessage()">전송</button>
@@ -263,163 +76,13 @@
         </div>
     </div>
 
-    <script>
-        let currentAiMessage = null;
+    <!-- Admin 모달은 여기에 동적으로 로드됨 -->
+    <div id="admin-modal-container"></div>
 
-        function toggleSystemPrompt() {
-            const input = document.getElementById('system-prompt-input');
-            if (input.style.display === 'none' || input.style.display === '') {
-                input.style.display = 'block';
-            } else {
-                input.style.display = 'none';
-            }
-            console.log('System prompt toggled:', input.style.display);
-        }
-
-        async function sendMessage() {
-            const input = document.getElementById('user-input');
-            const modelSelect = document.getElementById('model-select');
-            const systemPromptInput = document.getElementById('system-prompt-input');
-            const tempInput = document.getElementById('temperature');
-
-            const message = input.value.trim();
-            const modelType = modelSelect.value;
-            const systemPrompt = systemPromptInput.value.trim();
-            const temperature = tempInput.value;
-
-            if (!message) return;
-
-            // 사용자 메시지 추가
-            appendMessage('user', message);
-            input.value = '';
-            input.style.height = 'auto'; // 높이 초기화
-
-            // 로딩 표시
-            document.getElementById('loading').style.display = 'block';
-
-            // 스트리밍 요청
-            try {
-                const url = `/chat?message=${encodeURIComponent(message)}&model_type=${modelType}&temperature=${temperature}` +
-                    (systemPrompt ? `&system_prompt=${encodeURIComponent(systemPrompt)}` : '');
-
-                const response = await fetch(url, {
-                    method: 'POST'
-                });
-
-                if (response.status === 401) {
-                    alert('로그인이 필요합니다.');
-                    return;
-                }
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-
-                // 새로운 AI 메시지 영역 생성
-                currentAiMessage = appendMessage('ai', '');
-
-                while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const dataStr = line.replace('data: ', '');
-                            if (dataStr === '[DONE]') continue;
-                            try {
-                                const data = JSON.parse(dataStr);
-                                currentAiMessage.innerText += data.content;
-                                // 스크롤 하단 이동
-                                const messagesDiv = document.getElementById('messages');
-                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                            } catch (e) { }
-                        }
-                    }
-                }
-            } catch (err) {
-                console.error(err);
-                appendMessage('ai', '에러가 발생했습니다.');
-            } finally {
-                document.getElementById('loading').style.display = 'none';
-            }
-        }
-
-        function appendMessage(type, text) {
-            const messagesDiv = document.getElementById('messages');
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${type}`;
-            msgDiv.innerText = text;
-            messagesDiv.appendChild(msgDiv);
-            
-            // 텍스트 내의 줄바꿈(\n)을 <br>로 변환하거나 white-space: pre-wrap 적용
-            msgDiv.style.whiteSpace = 'pre-wrap';
-            
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            return msgDiv;
-        }
-
-        // 입력창 자동 높이 조절 및 엔터키 이벤트 처리
-        const userInput = document.getElementById('user-input');
-        userInput.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        userInput.addEventListener('input', function () {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
-        });
-
-        // 페이지 로드 시 로그인 상태 및 설정 확인
-        window.onload = () => {
-            checkLogin();
-            loadConfig();
-        };
-
-        async function loadConfig() {
-            try {
-                const response = await fetch('/api/config');
-                if (response.ok) {
-                    const config = await response.json();
-                    
-                    // 앱 이름 설정
-                    const appTitle = config.app_name + " 서비스";
-                    document.title = appTitle;
-                    document.getElementById('app-logo').innerText = appTitle;
-
-                    const modelSelect = document.getElementById('model-select');
-                    modelSelect.innerHTML = `
-                        <option value="chat" style="background:#1e293b;">${config.chat_label} (${config.chat_model})</option>
-                        <option value="reasoning" style="background:#1e293b;">${config.reasoning_label} (${config.reasoning_model})</option>
-                    `;
-                }
-            } catch (err) {
-                console.error('설정을 불러오는데 실패했습니다:', err);
-            }
-        }
-
-        async function checkLogin() {
-            try {
-                const response = await fetch('/user/me');
-                if (response.ok) {
-                    const user = await response.json();
-                    document.getElementById('login-section').style.display = 'none';
-                    document.getElementById('user-info').style.display = 'block';
-                    document.getElementById('username').innerText = user.preferred_username;
-
-                    const is_admin = user.groups && user.groups.includes('Admin');
-                    document.getElementById('role-badge').innerText = is_admin ? 'Admin' : 'User';
-                    document.getElementById('role-badge').style.background = is_admin ? '#ef4444' : '#10b981';
-                }
-            } catch (err) {
-                console.log('Not logged in');
-            }
-        }
-    </script>
+    <!-- JS 모듈 (SRP: 각 파일이 하나의 책임만 담당) -->
+    <script src="/static/js/chat.js"></script>
+    <script src="/static/js/admin.js"></script>
+    <script src="/static/js/app.js"></script>
 </body>
 
 </html>
