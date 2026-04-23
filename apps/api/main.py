@@ -106,6 +106,7 @@ async def chat(
     message: str = Query(...),
     model_type: str = Query("chat"), # "chat" or "reasoning"
     system_prompt: Optional[str] = Query(None),
+    temperature: Optional[float] = Query(0.7),
     user: UserInfo = Depends(get_current_user),
     session_id: Optional[str] = Query(None)
 ):
@@ -125,12 +126,12 @@ async def chat(
         system_content = "당신은 시스템 관리자 권한을 가진 AI입니다. 상세하고 전문적인 분석을 제공합니다."
     else:
         system_content = "당신은 친절한 일반 AI 어시스턴트입니다."
-
+ 
     # 3. 모델 선택 (chat vs reasoning)
     if model_type == "reasoning":
-        llm = LLMGateway.get_reasoning_llm()
+        llm = LLMGateway.get_reasoning_llm(temperature=temperature)
     else:
-        llm = LLMGateway.get_chat_llm()
+        llm = LLMGateway.get_chat_llm(temperature=temperature)
     
     # 4. 메모리 로드
     history = memory_manager.get_session_history(actual_session_id)

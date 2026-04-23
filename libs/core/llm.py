@@ -6,26 +6,29 @@ class LLMGateway:
     """LLM 및 Embedding 모델을 생성하는 게이트웨이 클래스"""
 
     @staticmethod
-    def get_chat_llm(streaming: bool = True) -> ChatOpenAI:
+    def get_chat_llm(streaming: bool = True, temperature: float = 0.7) -> ChatOpenAI:
         """기본 대화형 LLM 반환"""
         return ChatOpenAI(
             model=settings.CHAT_LLM_MODEL,
             api_key=settings.CHAT_LLM_API_KEY,
             base_url=settings.CHAT_LLM_BASE_URL,
             streaming=streaming,
-            temperature=0.7
+            temperature=temperature
         )
 
     @staticmethod
-    def get_reasoning_llm(streaming: bool = True) -> ChatOpenAI:
+    def get_reasoning_llm(streaming: bool = True, temperature: Optional[float] = None) -> ChatOpenAI:
         """추론 전용 LLM 반환 (o1/o4-mini 등)"""
-        return ChatOpenAI(
-            model=settings.REASONING_LLM_MODEL,
-            api_key=settings.REASONING_LLM_API_KEY,
-            base_url=settings.REASONING_LLM_BASE_URL,
-            streaming=streaming
-            # Reasoning 모델은 보통 temperature 조절이 제한적일 수 있음
-        )
+        kwargs = {
+            "model": settings.REASONING_LLM_MODEL,
+            "api_key": settings.REASONING_LLM_API_KEY,
+            "base_url": settings.REASONING_LLM_BASE_URL,
+            "streaming": streaming,
+        }
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+            
+        return ChatOpenAI(**kwargs)
 
     @staticmethod
     def get_embeddings() -> OpenAIEmbeddings:

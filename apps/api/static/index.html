@@ -113,13 +113,14 @@
 
         .input-box {
             display: flex;
+            align-items: flex-end;
             background: #334155;
-            padding: 10px 20px;
-            border-radius: 30px;
+            padding: 5px 20px;
+            border-radius: 24px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
 
-        input {
+        textarea#user-input {
             flex: 1;
             background: transparent;
             border: none;
@@ -127,6 +128,10 @@
             font-size: 1rem;
             padding: 10px;
             outline: none;
+            resize: none;
+            max-height: 200px;
+            font-family: inherit;
+            line-height: 1.5;
         }
 
         button {
@@ -150,6 +155,51 @@
             margin-top: 10px;
             display: none;
         }
+
+        .temp-label {
+            font-size: 0.85rem;
+            color: var(--text-color);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .temp-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        input#temperature {
+            width: 50px;
+            background: transparent;
+            border: none;
+            color: var(--accent-color);
+            font-size: 1rem;
+            font-weight: 600;
+            outline: none;
+            text-align: center;
+        }
+
+        .settings-section {
+            margin-top: 30px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .settings-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #64748b;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
     </style>
 </head>
 
@@ -159,6 +209,21 @@
         <div id="login-section">
             <button onclick="location.href='/auth/login'" style="width:100%">로그인</button>
         </div>
+
+        <div class="settings-section">
+            <div class="settings-title">Model Settings</div>
+            <div class="temp-group">
+                <label class="temp-label" for="temperature">Temperature</label>
+                <div class="temp-control">
+                    <input type="range" id="temp-slider" min="0" max="2" step="0.1" value="0.7" style="flex: 1; accent-color: var(--accent-color);" oninput="document.getElementById('temperature').value = this.value">
+                    <input type="number" id="temperature" value="0.7" min="0" max="2" step="0.1" oninput="document.getElementById('temp-slider').value = this.value">
+                </div>
+                <div style="font-size: 0.7rem; color: #64748b; margin-top: 8px;">
+                    낮을수록 정확하고, 높을수록 창의적입니다.
+                </div>
+            </div>
+        </div>
+
         <div class="user-profile" id="user-info" style="display:none">
             <div id="username">사용자명</div>
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -191,8 +256,7 @@
                     style="background:transparent; color:white; border:none; border-right:1px solid #475569; margin-right:10px; outline:none; cursor:pointer;">
                     <!-- 모델 목록은 JS에서 .env 설정을 기반으로 동적 생성됨 -->
                 </select>
-                <input type="text" id="user-input" placeholder="메시지를 입력하세요..."
-                    onkeypress="if(event.keyCode==13) sendMessage()">
+                <textarea id="user-input" placeholder="메시지를 입력하세요..." rows="1"></textarea>
                 <button onclick="sendMessage()">전송</button>
             </div>
             <div id="loading" class="loading">AI가 생각 중...</div>
@@ -216,23 +280,26 @@
             const input = document.getElementById('user-input');
             const modelSelect = document.getElementById('model-select');
             const systemPromptInput = document.getElementById('system-prompt-input');
+            const tempInput = document.getElementById('temperature');
 
             const message = input.value.trim();
             const modelType = modelSelect.value;
             const systemPrompt = systemPromptInput.value.trim();
+            const temperature = tempInput.value;
 
             if (!message) return;
 
             // 사용자 메시지 추가
             appendMessage('user', message);
             input.value = '';
+            input.style.height = 'auto'; // 높이 초기화
 
             // 로딩 표시
             document.getElementById('loading').style.display = 'block';
 
             // 스트리밍 요청
             try {
-                const url = `/chat?message=${encodeURIComponent(message)}&model_type=${modelType}` +
+                const url = `/chat?message=${encodeURIComponent(message)}&model_type=${modelType}&temperature=${temperature}` +
                     (systemPrompt ? `&system_prompt=${encodeURIComponent(systemPrompt)}` : '');
 
                 const response = await fetch(url, {
@@ -285,9 +352,27 @@
             msgDiv.className = `message ${type}`;
             msgDiv.innerText = text;
             messagesDiv.appendChild(msgDiv);
+            
+            // 텍스트 내의 줄바꿈(\n)을 <br>로 변환하거나 white-space: pre-wrap 적용
+            msgDiv.style.whiteSpace = 'pre-wrap';
+            
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
             return msgDiv;
         }
+
+        // 입력창 자동 높이 조절 및 엔터키 이벤트 처리
+        const userInput = document.getElementById('user-input');
+        userInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        userInput.addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
 
         // 페이지 로드 시 로그인 상태 및 설정 확인
         window.onload = () => {
