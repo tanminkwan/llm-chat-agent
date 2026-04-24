@@ -1,208 +1,255 @@
-// RAG Management Console Logic (Restored & Enhanced with Validation)
+/**
+ * RAG 지식 관리 콘솔 전용 JS
+ */
 
-let currentMode = 'collection'; // 'collection' or 'domain'
 let collections = [];
 let domains = [];
 
-document.addEventListener('DOMContentLoaded', async () => {
-    await loadUserInfo();
-    await loadData();
-});
-
-async function loadUserInfo() {
+/**
+ * 드롭다운 목록 로드
+ */
+async function loadDropdowns() {
     try {
-        const resp = await fetch('/user/me');
-        if (resp.ok) {
-            const user = await resp.json();
-            document.getElementById('username').textContent = user.preferred_username;
-            const badge = document.getElementById('role-badge');
-            badge.textContent = user.is_admin ? 'Admin' : 'User';
-            badge.className = user.is_admin ? 'admin-badge' : 'user-badge';
-        }
-    } catch (err) {
-        console.error('Failed to load user info:', err);
-    }
-}
-
-async function loadData() {
-    try {
-        const [colResp, domResp] = await Promise.all([
+        const [colRes, domRes] = await Promise.all([
             fetch('/api/collections'),
             fetch('/api/domains')
         ]);
 
-        if (colResp.ok) collections = await colResp.json();
-        if (domResp.ok) domains = await domResp.json();
+        if (colRes.ok) collections = await colRes.json();
+        if (domRes.ok) domains = await domRes.json();
 
-        renderTable();
-        renderFilters();
-    } catch (err) {
-        alert('데이터를 불러오는데 실패했습니다.');
+        const searchCol = document.getElementById('search-collection');
+        const formCol = document.getElementById('form-collection');
+        const searchDom = document.getElementById('search-domain');
+        const formDom = document.getElementById('form-domain');
+
+        // 초기화 (기존 옵션 제거)
+        searchCol.innerHTML = '<option value="all">전체</option>';
+        formCol.innerHTML = '<option value="" disabled selected>선택하세요</option>';
+        searchDom.innerHTML = '<option value="all">전체</option>';
+        formDom.innerHTML = '<option value="" disabled selected>선택하세요</option>';
+
+        collections.forEach(c => {
+            searchCol.innerHTML += `<option value="${c.collection_name}">${c.name} (${c.collection_name})</option>`;
+            formCol.innerHTML += `<option value="${c.collection_name}">${c.name}</option>`;
+        });
+
+        domains.forEach(d => {
+            searchDom.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+            formDom.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+        });
+
+    } catch (error) {
+        console.error('Error loading dropdowns:', error);
     }
 }
 
-function renderTable() {
-    const tbody = document.getElementById('collection-list');
-    tbody.innerHTML = '';
+/**
+ * 검색 수행
+ */
+async function performSearch() {
+    const colId = document.getElementById('search-collection').value;
+    const domId = document.getElementById('search-domain').value;
+    const algo = document.getElementById('search-algorithm').value;
+    const query = document.getElementById('search-query').value;
 
-    collections.forEach(col => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><code class="badge-type">${col.collection_name}</code></td>
-            <td>${col.name}</td>
-            <td>${col.search_method.toUpperCase()}</td>
-            <td>${col.description || '-'}</td>
-            <td class="action-btns">
-                <button class="icon-btn" onclick="editCollection('${col.collection_name}')">✏️</button>
-                <button class="icon-btn" style="color: #ef4444;" onclick="deleteCollection('${col.collection_name}')">🗑️</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
+    let url = `/api/rag/search?search_method=${algo}`;
+    if (colId !== 'all') url += `&collection_id=${colId}`;
+    if (domId !== 'all') url += `&domain_id=${domId}`;
+    if (query.trim()) url += `&query=${encodeURIComponent(query)}`;
 
-function renderFilters() {
-    const colSelect = document.getElementById('filter-collection');
-    const domSelect = document.getElementById('filter-domain');
+    const tbody = document.getElementById('rag-data-body');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">검색 중...</td></tr>';
 
-    colSelect.innerHTML = '<option value="">전체 유형</option>';
-    collections.forEach(col => {
-        colSelect.innerHTML += `<option value="${col.collection_name}">${col.name} (${col.collection_name})</option>`;
-    });
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
 
-    domSelect.innerHTML = '<option value="">전체 분야</option>';
-    domains.forEach(dom => {
-        domSelect.innerHTML += `<option value="${dom.id}">${dom.name}</option>`;
-    });
-}
-
-function showForm(mode, data = null) {
-    currentMode = mode;
-    const modal = document.getElementById('form-modal');
-    const title = document.getElementById('modal-title');
-    const colFields = document.getElementById('collection-fields');
-    const domFields = document.getElementById('domain-fields');
-    const colNameInput = document.getElementById('field-collection-name');
-
-    modal.style.display = 'flex';
-    
-    if (mode === 'collection') {
-        title.textContent = data ? '콜렉션 정보 수정' : '새 콜렉션 등록';
-        colFields.style.display = 'block';
-        domFields.style.display = 'none';
-        
-        if (data) {
-            colNameInput.value = data.collection_name;
-            colNameInput.disabled = true; 
-            document.getElementById('field-name').value = data.name;
-            document.getElementById('field-description').value = data.description || '';
-            document.getElementById('field-search-method').value = data.search_method;
-        } else {
-            colNameInput.value = '';
-            colNameInput.disabled = false;
-            document.getElementById('rag-form').reset();
-        }
-    } else {
-        title.textContent = '새 도메인(분야) 등록';
-        colFields.style.display = 'none';
-        domFields.style.display = 'block';
-        document.getElementById('rag-form').reset();
-    }
-}
-
-function closeModal() {
-    document.getElementById('form-modal').style.display = 'none';
-}
-
-async function saveData(event) {
-    event.preventDefault();
-    const isEdit = document.getElementById('field-collection-name').disabled;
-    
-    let url = '/api/collections';
-    let method = 'POST';
-    let body = {};
-
-    if (currentMode === 'collection') {
-        const colName = document.getElementById('field-collection-name').value;
-        
-        // --- 유효성 검사 추가 ---
-        if (!/^[a-zA-Z0-9_-]+$/.test(colName)) {
-            alert("콜렉션 명(Table Name)은 영문, 숫자, 하이픈(-), 언더바(_)만 사용 가능하며 한글은 금지됩니다.");
+        tbody.innerHTML = '';
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8;">결과가 없습니다.</td></tr>';
             return;
         }
 
-        if (isEdit) {
-            url = `/api/collections/${colName}`;
-            method = 'PUT';
+        data.forEach((item, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align: center; font-weight: bold; color: #94a3b8;">${index + 1}</td>
+                <td><span class="source-badge">${item.collection}</span></td>
+                <td>${getDomainName(item.domain_id)}</td>
+                <td><div class="text-truncate" title="${item.content}">${item.content}</div></td>
+                <td><div class="text-truncate" title="${item.extended_content}">${item.extended_content}</div></td>
+                <td><span class="source-badge">${item.source || 'N/A'}</span></td>
+                <td style="font-family: monospace; font-size: 0.85rem; color: #38bdf8;">${item.score !== null && item.score !== undefined ? item.score.toFixed(3) : '-'}</td>
+                <td>
+                    <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.75rem; border-radius: 4px; background: #3b82f6;" onclick="openEditSidebar(${JSON.stringify(item).replace(/"/g, '&quot;')}, 'show')">View</button>
+                    <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.75rem; border-radius: 4px;" onclick="openEditSidebar(${JSON.stringify(item).replace(/"/g, '&quot;')}, 'edit')">Edit</button>
+                    <button class="btn-danger" style="padding: 5px 10px; font-size: 0.75rem; border-radius: 4px;" onclick="deletePoint('${item.collection}', '${item.id}')">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Search error:', error);
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red">검색 중 오류가 발생했습니다.</td></tr>';
+    }
+}
+
+function getDomainName(id) {
+    if (!domains || domains.length === 0) return `Unknown (${id})`;
+    const dom = domains.find(d => Number(d.id) === Number(id));
+    return dom ? dom.name : `Unknown (${id})`;
+}
+
+/**
+ * 사이드바 열기/닫기
+ */
+function openSidebar(mode) {
+    document.getElementById('form-mode').value = mode;
+    
+    let title = 'Create Vector Point';
+    if (mode === 'edit') title = 'Edit Vector Point';
+    if (mode === 'show') title = 'View Vector Point';
+    document.getElementById('sidebar-title').innerText = title;
+    
+    // 라벨 텍스트 동적 처리 (불필요한 '선택 *' 제거)
+    const isShow = (mode === 'show');
+    const isEdit = (mode === 'edit');
+    
+    document.querySelector('label[for="form-collection"]').innerText = (isEdit || isShow) ? 'Collection' : 'Collection 선택 *';
+    document.querySelector('label[for="form-domain"]').innerText = isShow ? 'Domain' : 'Domain 선택 *';
+    document.querySelector('label[for="form-source"]').innerText = isShow ? '출처 (파일명 또는 참조명)' : '출처 (파일명 또는 참조명) *';
+    document.querySelector('label[for="form-content"]').innerText = isShow ? '임베딩용 문구 (Content)' : '임베딩용 문구 (Content) *';
+    document.querySelector('label[for="form-extended"]').innerText = isShow ? '실제 노출 내용 (Extended Content)' : '실제 노출 내용 (Extended Content) *';
+    
+    if (mode === 'create') {
+        document.getElementById('knowledge-form').reset();
+        document.getElementById('form-collection').style.display = 'block';
+        document.getElementById('form-collection-label').style.display = 'none';
+        document.getElementById('form-collection').disabled = false;
+        document.getElementById('form-domain').disabled = false;
+        document.getElementById('form-source').readOnly = false;
+        document.getElementById('form-content').readOnly = false;
+        document.getElementById('form-extended').readOnly = false;
+        
+        // 버튼 텍스트 및 상태 초기화
+        const saveBtn = document.getElementById('btn-save-knowledge');
+        const cancelBtn = document.getElementById('btn-cancel-knowledge');
+        if (saveBtn) saveBtn.style.display = 'block';
+        if (cancelBtn) {
+            cancelBtn.innerText = '취소';
+            cancelBtn.style.flex = 'initial';
         }
-        body = {
-            collection_name: colName,
-            name: document.getElementById('field-name').value,
-            description: document.getElementById('field-description').value,
-            search_method: document.getElementById('field-search-method').value,
-            snippet_size_limit: 500
-        };
-    } else {
-        url = '/api/domains';
-        body = { name: document.getElementById('field-domain-name').value };
     }
 
+    document.getElementById('action-sidebar').classList.add('active');
+    document.getElementById('sidebar-overlay').classList.add('active');
+}
+
+function closeSidebar() {
+    document.getElementById('action-sidebar').classList.remove('active');
+    document.getElementById('sidebar-overlay').classList.remove('active');
+}
+
+/**
+ * 수정 모드로 사이드바 열기
+ */
+function openEditSidebar(item, mode = 'edit') {
+    openSidebar(mode);
+    document.getElementById('edit-point-id').value = item.id;
+    document.getElementById('form-collection').value = item.collection; // API 전송용
+    
+    // 수정/조회 시 Select 숨기고 Label 표시
+    document.getElementById('form-collection').style.display = 'none';
+    document.getElementById('form-collection-label').style.display = 'block';
+    document.getElementById('form-collection-label').innerText = item.collection;
+    
+    document.getElementById('form-domain').value = item.domain_id;
+    document.getElementById('form-source').value = item.source || '';
+    document.getElementById('form-content').value = item.content;
+    document.getElementById('form-extended').value = item.extended_content;
+
+    const isReadonly = (mode === 'show');
+    document.getElementById('form-domain').disabled = isReadonly;
+    document.getElementById('form-source').readOnly = isReadonly;
+    document.getElementById('form-content').readOnly = isReadonly;
+    document.getElementById('form-extended').readOnly = isReadonly;
+    
+    // 버튼 상태 제어 (조회 시 저장 숨김 & 취소->닫기 변경)
+    const saveBtn = document.getElementById('btn-save-knowledge');
+    const cancelBtn = document.getElementById('btn-cancel-knowledge');
+    
+    if (saveBtn) {
+        saveBtn.style.display = isReadonly ? 'none' : 'block';
+    }
+    
+    if (cancelBtn) {
+        cancelBtn.innerText = isReadonly ? '닫기' : '취소';
+        cancelBtn.style.flex = isReadonly ? '1' : 'initial';
+    }
+}
+
+/**
+ * 지식 저장 (등록/수정)
+ */
+async function saveKnowledge(event) {
+    event.preventDefault();
+    const mode = document.getElementById('form-mode').value;
+    
+    const payload = {
+        collection_name: document.getElementById('form-collection').value,
+        domain_id: parseInt(document.getElementById('form-domain').value),
+        source: document.getElementById('form-source').value,
+        content: document.getElementById('form-content').value,
+        extended_content: document.getElementById('form-extended').value,
+        point_id: mode === 'edit' ? document.getElementById('edit-point-id').value : null
+    };
+
     try {
-        const resp = await fetch(url, {
-            method: method,
+        const res = await fetch('/api/rag/knowledge', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
+            body: JSON.stringify(payload)
         });
 
-        if (resp.ok) {
-            closeModal();
-            await loadData();
+        if (res.ok) {
+            alert(mode === 'create' ? '등록되었습니다.' : '수정되었습니다.');
+            closeSidebar();
+            performSearch();
         } else {
-            const err = await resp.json();
-            alert(`저장 실패: ${err.detail || '알 수 없는 에러'}`);
+            const err = await res.json();
+            alert('저장 실패: ' + err.detail);
         }
-    } catch (err) {
-        alert('서버 통신 중 에러가 발생했습니다.');
+    } catch (error) {
+        alert('서버 통신 오류가 발생했습니다.');
     }
 }
 
-async function editCollection(colName) {
-    const col = collections.find(c => c.collection_name === colName);
-    if (col) showForm('collection', col);
-}
+/**
+ * 지식 삭제
+ */
+async function deletePoint(colName, pointId) {
+    if (!confirm('정말 삭제하시겠습니까?')) return;
 
-async function deleteCollection(colName) {
-    if (!confirm(`'${colName}' 콜렉션을 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
-    
-    const deleteVector = confirm('Qdrant의 실제 벡터 데이터도 함께 삭제하시겠습니까?');
-    
     try {
-        const resp = await fetch(`/api/collections/${colName}?delete_vector=${deleteVector}`, {
+        const res = await fetch(`/api/rag/knowledge/${colName}/${pointId}`, {
             method: 'DELETE'
         });
 
-        if (resp.ok) {
-            await loadData();
+        if (res.ok) {
+            performSearch();
         } else {
-            alert('삭제에 실패했습니다.');
+            alert('삭제 실패');
         }
-    } catch (err) {
-        alert('에러가 발생했습니다.');
+    } catch (error) {
+        alert('오류 발생');
     }
 }
 
-function performSearch() {
-    const manualColId = document.getElementById('search-collection-id').value;
-    const selectedColId = document.getElementById('filter-collection').value;
-    const dom = document.getElementById('filter-domain').value;
-    const query = document.getElementById('search-query').value;
-
-    const colId = manualColId || selectedColId;
-
-    if (!colId) {
-        alert('조회할 콜렉션 ID를 입력하거나 유형을 선택하세요.');
-        return;
+// Enter 키로 검색 지원
+document.getElementById('search-query')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        performSearch();
     }
-
-    alert(`통합 검색 실행 예 예정:\n[콜렉션 ID: ${colId}, 분야 ID: ${dom}, 쿼리: ${query}]`);
-}
+});

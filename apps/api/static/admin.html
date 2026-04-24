@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 대시보드 - AI 에이전트</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=3">
+    <style>
+        #main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .admin-section {
+            background: var(--sidebar-color);
+            padding: 25px;
+            border-radius: 16px;
+            border: 1px solid #334155;
+            margin-bottom: 30px;
+        }
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 10px;
+        }
+        .nav-tab {
+            padding: 10px 20px;
+            color: #94a3b8;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .nav-tab:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .nav-tab.active {
+            color: var(--accent-color);
+            border-bottom: 3px solid var(--accent-color);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="sidebar">
+        <div class="logo" id="app-logo" style="margin-bottom: 30px;">AI 에이전트</div>
+        
+        <nav style="display: flex; flex-direction: column; gap: 5px; flex: 1;">
+            <a href="/" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">💬 Chat</a>
+            <a href="/rag" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📚 RAG Console</a>
+            <a href="/bulk" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📤 Batch Upload</a>
+            
+            <div id="admin-panel" style="display:none; flex-direction: column; gap: 5px; margin-top: 15px;">
+                <div style="font-size: 0.75rem; color: #64748b; margin-left: 15px; margin-bottom: 5px; font-weight: 600;">ADMIN TOOLS</div>
+                <a href="/admin?tab=collection" id="nav-collection" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: var(--accent-color); background: rgba(56, 189, 248, 0.1); font-weight: 500; transition: 0.2s;">📚 Collection</a>
+                <a href="/admin?tab=domain" id="nav-domain" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="if(this.style.color!=='var(--accent-color)'){this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';}" onmouseout="if(this.style.color!=='var(--accent-color)'){this.style.color='#94a3b8'; this.style.background='transparent';}">🌐 Domain</a>
+            </div>
+        </nav>
+
+        <div id="login-section" style="margin-top: 15px;">
+            <button onclick="location.href='/auth/login'" style="width:100%">로그인</button>
+        </div>
+
+        <div class="user-profile" id="user-info" style="display:none; margin-top: 15px;">
+            <div id="username">사용자명</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                <div id="role-badge" class="admin-badge">Admin</div>
+                <a href="/auth/logout" style="color: var(--accent-color); font-size: 0.75rem; text-decoration: none;">로그아웃</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <h1 style="margin-top: 0; margin-bottom: 20px;">관리자 대시보드</h1>
+        
+        <div class="nav-tabs">
+            <div class="nav-tab active" id="tab-collection" onclick="switchTab('collection')">📚 Collection</div>
+            <div class="nav-tab" id="tab-domain" onclick="switchTab('domain')">🌐 Domain</div>
+        </div>
+
+        <!-- 콜렉션 관리 패널 -->
+        <div id="collection-manager" class="admin-section">
+            <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 30px;">
+                <div>
+                    <h3 id="col-form-title">콜렉션 등록</h3>
+                    <div class="form-group">
+                        <label>Collection ID (영문/숫자/-/_)</label>
+                        <input type="text" id="col-collection-name" placeholder="예: qna_docs">
+                    </div>
+                    <div class="form-group">
+                        <label>표시 이름 (Display Name)</label>
+                        <input type="text" id="col-name" placeholder="예: 법률_데이터">
+                    </div>
+                    <div class="form-group">
+                        <label>설명 (Description)</label>
+                        <textarea id="col-desc" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Snippet Size Limit (Byte)</label>
+                        <input type="number" id="col-snippet" value="500">
+                    </div>
+                    <div class="form-group">
+                        <label>Search Algorithm</label>
+                        <select id="col-search">
+                            <option value="vector">Vector Distance (Semantic)</option>
+                            <option value="bm25">BM25 (Keyword)</option>
+                            <option value="hybrid">Hybrid (Keyword + Vector)</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button onclick="saveCollection()" id="col-save-btn" style="flex: 1; border-radius: 4px;">저장하기</button>
+                        <button onclick="resetColForm()" style="flex: 0.5; background: #64748b; border-radius: 4px;">초기화</button>
+                    </div>
+                </div>
+                <div>
+                    <h3>등록된 콜렉션</h3>
+                    <div style="max-height: 450px; overflow-y: auto;">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="collection-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 도메인 관리 패널 -->
+        <div id="domain-manager" class="admin-section" style="display:none">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div>
+                    <h3 id="dom-form-title">도메인 등록</h3>
+                    <input type="hidden" id="dom-id">
+                    <div class="form-group">
+                        <label>Domain Name</label>
+                        <input type="text" id="dom-name" placeholder="예: 과학, 경제, IT">
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button onclick="saveDomain()" id="dom-save-btn" style="flex: 1; border-radius: 4px;">저장하기</button>
+                        <button onclick="resetDomForm()" style="flex: 0.5; background: #64748b; border-radius: 4px;">초기화</button>
+                    </div>
+                </div>
+                <div>
+                    <h3>등록된 도메인</h3>
+                    <div style="max-height: 450px; overflow-y: auto;">
+                        <table class="admin-table">
+                            <thead>
+                                <tr><th>ID</th><th>Name</th><th>관리</th></tr>
+                            </thead>
+                            <tbody id="domain-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js?v=3"></script>
+    <script src="/static/js/admin.js?v=3"></script>
+    <script>
+        function switchTab(tab) {
+            document.getElementById('collection-manager').style.display = 'none';
+            document.getElementById('domain-manager').style.display = 'none';
+            document.getElementById('tab-collection').classList.remove('active');
+            document.getElementById('tab-domain').classList.remove('active');
+            
+            // 사이드바 메뉴 스타일 초기화
+            document.getElementById('nav-collection').style.color = '#94a3b8';
+            document.getElementById('nav-collection').style.background = 'transparent';
+            document.getElementById('nav-collection').style.fontWeight = 'normal';
+            document.getElementById('nav-domain').style.color = '#94a3b8';
+            document.getElementById('nav-domain').style.background = 'transparent';
+            document.getElementById('nav-domain').style.fontWeight = 'normal';
+
+            if (tab === 'collection') {
+                document.getElementById('collection-manager').style.display = 'block';
+                document.getElementById('tab-collection').classList.add('active');
+                
+                document.getElementById('nav-collection').style.color = 'var(--accent-color)';
+                document.getElementById('nav-collection').style.background = 'rgba(56, 189, 248, 0.1)';
+                document.getElementById('nav-collection').style.fontWeight = '500';
+                
+                if (typeof loadCollections === 'function') loadCollections();
+            } else {
+                document.getElementById('domain-manager').style.display = 'block';
+                document.getElementById('tab-domain').classList.add('active');
+                
+                document.getElementById('nav-domain').style.color = 'var(--accent-color)';
+                document.getElementById('nav-domain').style.background = 'rgba(56, 189, 248, 0.1)';
+                document.getElementById('nav-domain').style.fontWeight = '500';
+                
+                if (typeof loadDomains === 'function') loadDomains();
+            }
+            
+            // URL 파라미터 무중단 업데이트
+            const url = new URL(window.location);
+            url.searchParams.set('tab', tab);
+            window.history.pushState({}, '', url);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab') || 'collection';
+            switchTab(tab);
+        });
+    </script>
+</body>
+</html>

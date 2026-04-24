@@ -5,18 +5,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">AI 에이전트</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css?v=2">
 </head>
 
 <body>
     <div id="sidebar">
-        <div class="logo" id="app-logo">AI 에이전트</div>
-        <div id="login-section">
-            <button onclick="location.href='/auth/login'" style="width:100%">로그인</button>
-        </div>
+        <div class="logo" id="app-logo" style="margin-bottom: 30px;">AI 에이전트</div>
+        
+        <nav style="display: flex; flex-direction: column; gap: 5px; flex: 1;">
+            <a href="/" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: var(--accent-color); background: rgba(56, 189, 248, 0.1); font-weight: 500;">💬 Chat</a>
+            <a href="/rag" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📚 RAG Console</a>
+            <a href="/bulk" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📤 Batch Upload</a>
+            
+            <div id="admin-panel" style="display:none; flex-direction: column; gap: 5px; margin-top: 15px;">
+                <div style="font-size: 0.75rem; color: #64748b; margin-left: 15px; margin-bottom: 5px; font-weight: 600;">ADMIN TOOLS</div>
+                <a href="/admin?tab=collection" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📚 Collection</a>
+                <a href="/admin?tab=domain" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">🌐 Domain</a>
+            </div>
+        </nav>
 
-        <div class="settings-section">
-            <div class="settings-title">Model Settings</div>
+        <div class="settings-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #334155; background: transparent; padding-left: 0; padding-right: 0;">
+            <div class="settings-title" style="margin-bottom: 10px;">Model Settings</div>
             <div class="temp-group">
                 <label class="temp-label" for="temperature">Temperature</label>
                 <div class="temp-control">
@@ -26,24 +35,18 @@
                     <input type="number" id="temperature" value="0.7" min="0" max="2" step="0.1"
                         oninput="document.getElementById('temp-slider').value = this.value">
                 </div>
-                <div style="font-size: 0.7rem; color: #64748b; margin-top: 8px;">
-                    낮을수록 정확하고, 높을수록 창의적입니다.
-                </div>
             </div>
         </div>
 
-        <div id="admin-panel" style="display:none">
-            <div class="settings-title">Admin Panel</div>
-            <div class="admin-btn" onclick="openAdminModal('collection')">📚 콜렉션 관리</div>
-            <div class="admin-btn" onclick="openAdminModal('domain')">🌐 도메인 관리</div>
+        <div id="login-section" style="margin-top: 15px;">
+            <button onclick="location.href='/auth/login'" style="width:100%">로그인</button>
         </div>
 
-        <div class="user-profile" id="user-info" style="display:none">
+        <div class="user-profile" id="user-info" style="display:none; margin-top: 15px;">
             <div id="username">사용자명</div>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
                 <div id="role-badge" class="admin-badge">Admin</div>
-                <a href="/auth/logout"
-                    style="color: var(--accent-color); font-size: 0.75rem; text-decoration: none;">로그아웃</a>
+                <a href="/auth/logout" style="color: var(--accent-color); font-size: 0.75rem; text-decoration: none;">로그아웃</a>
             </div>
         </div>
     </div>
@@ -70,7 +73,7 @@
                     style="background:transparent; color:white; border:none; border-right:1px solid #475569; margin-right:10px; outline:none; cursor:pointer;">
                 </select>
                 <textarea id="user-input" placeholder="메시지를 입력하세요..." rows="1"></textarea>
-                <button onclick="sendMessage()">전송</button>
+                <button onclick="sendMessage()" style="border-radius: 4px;">전송</button>
             </div>
             <div id="loading" class="loading">AI가 생각 중...</div>
         </div>
@@ -80,9 +83,9 @@
     <div id="admin-modal-container"></div>
 
     <!-- JS 모듈 (SRP: 각 파일이 하나의 책임만 담당) -->
-    <script src="/static/js/chat.js"></script>
-    <script src="/static/js/admin.js"></script>
-    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat.js?v=2"></script>
+    <script src="/static/js/admin.js?v=2"></script>
+    <script src="/static/js/app.js?v=2"></script>
 </body>
 
 </html>

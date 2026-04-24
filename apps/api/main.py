@@ -10,11 +10,15 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 import uvicorn
+import pandas as pd
+import io
+import uuid
+from fastapi import BackgroundTasks, File, UploadFile, Form
 
 from libs.core.settings import settings
 from libs.core.llm import LLMGateway
 from libs.core.memory import memory_manager
-from libs.core.database import get_db, engine, Base
+from libs.core.database import get_db, engine, Base, AsyncSessionLocal
 from libs.core.service import RAGService
 
 app = FastAPI(title=settings.APP_NAME)
@@ -53,6 +57,14 @@ class CollectionCreate(BaseModel):
 
 class DomainCreate(BaseModel):
     name: str
+
+class KnowledgeCreate(BaseModel):
+    collection_name: str
+    domain_id: int
+    content: str
+    extended_content: str
+    source: str
+    point_id: Optional[str] = None
 
 class UserInfo(BaseModel):
     sub: str
@@ -96,6 +108,16 @@ async def logout(request: Request):
 @app.get("/")
 async def root(request: Request):
     """메인 화면 접근 시 권한 체크"""
+    # [진단 로그]
+    import os
+    path = "apps/api/static/index.html"
+    exists = os.path.exists(path)
+    contains_rag = False
+    if exists:
+        with open(path, "r") as f:
+            contains_rag = "rag" in f.read()
+    print(f"DEBUG: CWD={os.getcwd()}, Path={path}, Exists={exists}, Contains 'rag'={contains_rag}")
+
     user = request.session.get('user')
     if not user:
         return RedirectResponse(url="/auth/login")
@@ -104,7 +126,7 @@ async def root(request: Request):
     if not any(role in groups for role in ["Admin", "User"]):
         return RedirectResponse(url="/static/unauthorized.html")
     
-    return FileResponse("apps/api/static/index.html")
+    return FileResponse(path)
 
 @app.get("/rag")
 async def rag_console(request: Request):
@@ -118,6 +140,19 @@ async def rag_console(request: Request):
         return RedirectResponse(url="/static/unauthorized.html")
     
     return FileResponse("apps/api/static/rag.html")
+
+@app.get("/admin")
+async def admin_console(request: Request):
+    """관리자 대시보드 접근 (전체 화면)"""
+    user = request.session.get('user')
+    if not user:
+        return RedirectResponse(url="/auth/login")
+    
+    groups = user.get('groups', [])
+    if "Admin" not in groups:
+        return RedirectResponse(url="/static/unauthorized.html")
+    
+    return FileResponse("apps/api/static/admin.html")
 
 async def get_current_user(request: Request) -> UserInfo:
     """세션에서 사용자 정보를 가져오는 의존성 주입 함수"""
@@ -155,7 +190,6 @@ async def create_collection(
 ):
     if not any(role in user.groups for role in ["Admin", "User"]):
         raise HTTPException(status_code=403, detail="권한이 없습니다.")
-    # TypeError 방지를 위해 model_dump() 결과를 기반으로 함수 호출
     return await service.create_collection(**data.model_dump())
 
 @app.get("/api/collections")
@@ -177,7 +211,6 @@ async def update_collection(
     if not any(role in user.groups for role in ["Admin", "User"]):
         raise HTTPException(status_code=403, detail="권한이 없습니다.")
     try:
-        # collection_name은 URL 경로에서 이미 받았으므로, 바디 데이터에서는 제외하여 중복 전달 방지
         update_data = data.model_dump()
         update_data.pop("collection_name", None)
         return await service.update_collection(collection_name, **update_data)
@@ -246,6 +279,72 @@ async def delete_domain(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+# --- RAG 지식 데이터 관리 API ---
+
+@app.get("/api/rag/search")
+async def search_rag(
+    collection_id: Optional[str] = Query(None),
+    domain_id: Optional[int] = Query(None),
+    query: Optional[str] = Query(None),
+    search_method: str = Query("vector"),
+    service: RAGService = Depends(get_rag_service),
+    user: UserInfo = Depends(get_current_user)
+):
+    return await service.search_rag(
+        collection_id=collection_id,
+        domain_id=domain_id,
+        query=query,
+        search_method=search_method
+    )
+
+@app.post("/api/rag/knowledge")
+async def add_knowledge(
+    data: KnowledgeCreate,
+    service: RAGService = Depends(get_rag_service),
+    user: UserInfo = Depends(get_current_user)
+):
+    try:
+        return await service.add_knowledge_point(**data.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/rag/knowledge/{collection_name}/{point_id}")
+async def delete_knowledge(
+    collection_name: str,
+    point_id: str,
+    service: RAGService = Depends(get_rag_service),
+    user: UserInfo = Depends(get_current_user)
+):
+    return await service.delete_knowledge_point(collection_name, point_id)
+
+@app.get("/api/rag/delete-count")
+async def get_delete_count(
+    collection: str = Query(...),
+    domain_id: Optional[int] = Query(None),
+    source: Optional[str] = Query(None),
+    service: RAGService = Depends(get_rag_service),
+    user: UserInfo = Depends(get_current_user)
+):
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    count = await service.count_knowledge_points(collection, domain_id, source)
+    return {"count": count}
+
+@app.delete("/api/rag/bulk-delete")
+async def bulk_delete_knowledge(
+    collection: str = Query(...),
+    domain_id: Optional[int] = Query(None),
+    source: Optional[str] = Query(None),
+    service: RAGService = Depends(get_rag_service),
+    user: UserInfo = Depends(get_current_user)
+):
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    try:
+        return await service.bulk_delete_knowledge_points(collection, domain_id, source)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 # --- 채팅 엔드포인트 ---
 
 @app.post("/chat")
@@ -283,6 +382,115 @@ async def chat(
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+# --- Excel Batch Upload 엔드포인트 ---
+
+global_bulk_tasks = {}
+
+async def process_bulk_upload_task(task_id: str, file_content: bytes, filename: str, collection_name: str, domain_id: int):
+    success = 0
+    error = 0
+    errors_list = []
+    
+    try:
+        df = pd.read_excel(io.BytesIO(file_content))
+        total = len(df)
+        global_bulk_tasks[task_id]['total'] = total
+        
+        async with AsyncSessionLocal() as db:
+            service = RAGService(db)
+            
+            # 콜렉션 정보 가져와서 snippet_size_limit 확인
+            col = await service.col_repo.get_by_id(collection_name)
+            snippet_size_limit = col.snippet_size_limit if col else 500
+            
+            for index, row in df.iterrows():
+                try:
+                    content = str(row.get('Content', '')).strip()
+                    ext_content = str(row.get('Extended Content', '')).strip()
+                    if ext_content == 'nan' or not ext_content:
+                        ext_content = content
+                    
+                    if len(content.encode('utf-8')) > snippet_size_limit:
+                        raise ValueError(f"Content exceeds snippet size limit ({snippet_size_limit} bytes)")
+                    
+                    if not content or content == 'nan':
+                        raise ValueError("Content is empty")
+                    
+                    await service.add_knowledge_point(
+                        collection_name=collection_name,
+                        domain_id=domain_id,
+                        content=content,
+                        extended_content=ext_content,
+                        source=filename
+                    )
+                    success += 1
+                except Exception as e:
+                    error += 1
+                    row_dict = row.to_dict()
+                    row_dict['Error Reason'] = str(e)
+                    errors_list.append(row_dict)
+                    
+                global_bulk_tasks[task_id]['success'] = success
+                global_bulk_tasks[task_id]['error'] = error
+                
+        if errors_list:
+            error_df = pd.DataFrame(errors_list)
+            error_path = f"/tmp/{task_id}_errors.xlsx"
+            error_df.to_excel(error_path, index=False)
+            global_bulk_tasks[task_id]['error_file'] = error_path
+            
+    except Exception as e:
+        print(f"Bulk task error: {e}")
+        global_bulk_tasks[task_id]['error'] += 1
+        
+    global_bulk_tasks[task_id]['done'] = True
+
+@app.get("/bulk")
+async def bulk_page(request: Request):
+    user = request.session.get('user')
+    if not user:
+        return RedirectResponse(url="/auth/login")
+    return FileResponse(os.path.join(static_dir, "bulk.html"))
+
+@app.post("/api/rag/bulk-upload")
+async def start_bulk_upload(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    collection: str = Form(...),
+    domain_id: int = Form(...),
+    user: UserInfo = Depends(get_current_user)
+):
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+        
+    content = await file.read()
+    task_id = str(uuid.uuid4())
+    
+    global_bulk_tasks[task_id] = {
+        "total": 0,
+        "success": 0,
+        "error": 0,
+        "done": False,
+        "error_file": None
+    }
+    
+    background_tasks.add_task(process_bulk_upload_task, task_id, content, file.filename, collection, domain_id)
+    return {"task_id": task_id}
+
+@app.get("/api/rag/bulk-progress/{task_id}")
+async def get_bulk_progress(task_id: str):
+    task = global_bulk_tasks.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+@app.get("/api/rag/bulk-error-download/{task_id}")
+async def download_bulk_errors(task_id: str):
+    task = global_bulk_tasks.get(task_id)
+    if not task or not task.get('error_file'):
+        raise HTTPException(status_code=404, detail="Error file not found")
+    return FileResponse(task['error_file'], filename=f"error_report_{task_id}.xlsx")
 
 if __name__ == "__main__":
     uvicorn.run("apps.api.main:app", host="0.0.0.0", port=8000, reload=settings.DEBUG)

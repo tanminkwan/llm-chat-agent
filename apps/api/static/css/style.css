@@ -14,6 +14,7 @@ body {
     color: var(--text-color);
     display: flex;
     height: 100vh;
+    overflow-x: hidden;
 }
 
 /* 사이드바 */
@@ -84,6 +85,12 @@ body {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
 }
 
 .message.user {

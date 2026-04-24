@@ -17,10 +17,12 @@ async function loadConfig() {
             document.getElementById('app-logo').innerText = appTitle;
 
             const modelSelect = document.getElementById('model-select');
-            modelSelect.innerHTML = `
-                <option value="chat" style="background:#1e293b;">${config.chat_label} (${config.chat_model})</option>
-                <option value="reasoning" style="background:#1e293b;">${config.reasoning_label} (${config.reasoning_model})</option>
-            `;
+            if (modelSelect) {
+                modelSelect.innerHTML = `
+                    <option value="chat" style="background:#1e293b;">${config.chat_label} (${config.chat_model})</option>
+                    <option value="reasoning" style="background:#1e293b;">${config.reasoning_label} (${config.reasoning_model})</option>
+                `;
+            }
         }
     } catch (err) {
         console.error('설정을 불러오는데 실패했습니다:', err);
