@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_API_KEY: Optional[str] = None
     EMBEDDING_DIM: int = 1536
+    EMBEDDING_USE_CUSTOM: bool = False
 
     # Qdrant Settings
     QDRANT_URL: str = "http://qdrant:6333"
