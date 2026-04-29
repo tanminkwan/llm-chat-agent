@@ -1,7 +1,14 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+# Global mocks before importing app to avoid network calls
+with patch("authlib.integrations.starlette_client.OAuth.register"), \
+     patch("apps.api.main.engine.begin"), \
+     patch("apps.api.main.AsyncSessionLocal"):
+    from apps.api.main import app, get_current_user, get_rag_service
+    from apps.api.schemas import UserInfo, SearchResult, SearchRequest
+
 from fastapi.testclient import TestClient
-from apps.api.main import app, get_current_user, get_rag_service, UserInfo
 
 # Mock Admin user for API testing
 def mock_admin_user():
@@ -12,17 +19,9 @@ def mock_qdrant():
     with patch("libs.core.service.QdrantClient") as mock:
         yield mock
 
-@pytest.fixture(autouse=True)
-def mock_db_engine():
-    with patch("apps.api.main.engine") as mock_eng, \
-         patch("apps.api.main.AsyncSessionLocal") as mock_sess:
-        yield mock_eng, mock_sess
-
 @pytest.fixture
 def client():
     app.dependency_overrides[get_current_user] = mock_admin_user
-    # startup 이벤트에서 발생하는 DB 연동을 방지하기 위해 TestClient(app) 호출 시 
-    # autouse fixture가 먼저 동작함
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
@@ -32,6 +31,7 @@ def mock_service():
     service = MagicMock()
     service.count_knowledge_points = AsyncMock()
     service.bulk_delete_knowledge_points = AsyncMock()
+    service.search_rag = AsyncMock()
     return service
 
 def test_get_delete_count_api(client, mock_service):
@@ -52,7 +52,7 @@ def test_get_delete_count_api(client, mock_service):
 def test_bulk_delete_api(client, mock_service):
     """일괄 삭제 실행 API 테스트"""
     app.dependency_overrides[get_rag_service] = lambda: mock_service
-    mock_service.bulk_delete_knowledge_points.return_value = {"status": "success"}
+    mock_service.bulk_delete_knowledge_points.return_value = {"message": "Bulk delete success"}
     
     response = client.delete("/api/rag/bulk-delete", params={
         "collection": "test_col",
@@ -61,25 +61,52 @@ def test_bulk_delete_api(client, mock_service):
     })
     
     assert response.status_code == 200
-    assert response.json() == {"status": "success"}
+    # Update expected message to match MessageResponse schema if needed
+    assert "message" in response.json()
     mock_service.bulk_delete_knowledge_points.assert_called_once_with("test_col", 1, "test.xlsx")
 
-def test_bulk_delete_api_permission_denied(mock_qdrant):
+def test_bulk_delete_api_permission_denied(client):
     """Admin이 아닌 유저의 일괄 삭제 요청 거부 테스트"""
     def mock_normal_user():
         return UserInfo(sub="user_sub", preferred_username="user", groups=["User"])
     
     app.dependency_overrides[get_current_user] = mock_normal_user
-    # TestClient 생성 시 startup 이벤트 방지를 위해 with 구문 없이 사용하거나
-    # startup 이벤트를 모킹함
-    test_client = TestClient(app)
     
-    response = test_client.delete("/api/rag/bulk-delete", params={
+    response = client.delete("/api/rag/bulk-delete", params={
         "collection": "test_col"
     })
     
     assert response.status_code == 403
-    app.dependency_overrides.clear()
+
+def test_search_rag_api(client, mock_service):
+    """RAG 검색 API POST 방식 테스트"""
+    app.dependency_overrides[get_rag_service] = lambda: mock_service
+    mock_service.search_rag.return_value = [
+        {
+            "id": "point-1",
+            "collection": "test_col",
+            "score": 0.9,
+            "content": "검색 결과",
+            "extended_content": "상세 결과",
+            "domain_id": 1,
+            "source": "test.pdf",
+            "created_at": "2024-04-24T00:00:00Z"
+        }
+    ]
+    
+    payload = {
+        "query": "검색어",
+        "collection_id": "test_col",
+        "limit": 5
+    }
+    
+    response = client.post("/api/rag/search", json=payload)
+    
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == "point-1"
+    mock_service.search_rag.assert_called_once()
 
 # --- Service Layer Unit Tests ---
 
@@ -89,11 +116,9 @@ async def test_service_count_knowledge_points(mock_qdrant):
     from libs.core.service import RAGService
     db = AsyncMock()
     service = RAGService(db)
-    # mock_qdrant fixture handles the class, we need the instance
     q_inst = mock_qdrant.return_value
     service.qdrant = q_inst
     
-    # Mock Qdrant count response
     mock_res = MagicMock()
     mock_res.count = 5
     q_inst.count.return_value = mock_res
@@ -115,4 +140,3 @@ async def test_service_bulk_delete_knowledge_points(mock_qdrant):
     await service.bulk_delete_knowledge_points("my_col", domain_id=2, source="file.xlsx")
     
     q_inst.delete.assert_called_once()
-

@@ -32,10 +32,18 @@ async function sendMessage() {
     document.getElementById('loading').style.display = 'block';
 
     try {
-        const url = `/chat?message=${encodeURIComponent(message)}&model_type=${modelType}&temperature=${temperature}` +
-            (systemPrompt ? `&system_prompt=${encodeURIComponent(systemPrompt)}` : '');
-
-        const response = await fetch(url, { method: 'POST' });
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: message,
+                model_type: modelType,
+                system_prompt: systemPrompt,
+                temperature: parseFloat(temperature)
+            })
+        });
 
         if (response.status === 401) {
             alert('로그인이 필요합니다.');

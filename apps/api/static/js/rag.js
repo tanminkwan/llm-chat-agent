@@ -53,16 +53,23 @@ async function performSearch() {
     const algo = document.getElementById('search-algorithm').value;
     const query = document.getElementById('search-query').value;
 
-    let url = `/api/rag/search?search_method=${algo}`;
-    if (colId !== 'all') url += `&collection_id=${colId}`;
-    if (domId !== 'all') url += `&domain_id=${domId}`;
-    if (query.trim()) url += `&query=${encodeURIComponent(query)}`;
+    const payload = {
+        search_method: algo,
+        collection_id: colId === 'all' ? null : colId,
+        domain_id: domId === 'all' ? null : parseInt(domId),
+        query: query.trim() || null,
+        limit: 50
+    };
 
     const tbody = document.getElementById('rag-data-body');
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">검색 중...</td></tr>';
 
     try {
-        const res = await fetch(url);
+        const res = await fetch('/api/rag/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
         const data = await res.json();
 
         tbody.innerHTML = '';
