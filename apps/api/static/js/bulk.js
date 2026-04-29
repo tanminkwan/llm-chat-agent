@@ -15,7 +15,7 @@ async function loadDropdowns() {
             const delColSelect = document.getElementById('delete-collection');
             cols.forEach(c => {
                 const opt = document.createElement('option');
-                opt.value = c.name;
+                opt.value = c.collection_name;
                 opt.textContent = c.name;
                 colSelect.appendChild(opt);
                 

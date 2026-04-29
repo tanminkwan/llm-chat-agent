@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
 from libs.core.auth import get_current_user, UserInfo
 from jose import jwt
@@ -20,16 +20,22 @@ def mock_creds():
         credentials = "dummy_token"
     return MockCreds()
 
+@pytest.fixture
+def mock_request():
+    request = MagicMock()
+    request.session = {}
+    return request
+
 @pytest.mark.asyncio
 @patch("libs.core.auth.jwt.decode")
 @patch("httpx.AsyncClient.get")
-async def test_get_current_user_success(mock_get, mock_decode, mock_creds):
+async def test_get_current_user_success(mock_get, mock_decode, mock_creds, mock_request):
     # Mock 설정
     mock_get.return_value = AsyncMock(json=lambda: {"keys": []})
     mock_decode.return_value = MOCK_PAYLOAD
     
     # 실행
-    user = await get_current_user(mock_creds)
+    user = await get_current_user(mock_request, mock_creds)
     
     # 검증
     assert user.username == "testuser"
@@ -39,21 +45,21 @@ async def test_get_current_user_success(mock_get, mock_decode, mock_creds):
 @pytest.mark.asyncio
 @patch("libs.core.auth.jwt.decode")
 @patch("httpx.AsyncClient.get")
-async def test_get_current_user_admin(mock_get, mock_decode, mock_creds):
+async def test_get_current_user_admin(mock_get, mock_decode, mock_creds, mock_request):
     # Admin 권한 페이로드
     admin_payload = MOCK_PAYLOAD.copy()
     admin_payload["groups"] = ["Admin", "User"]
     mock_get.return_value = AsyncMock(json=lambda: {"keys": []})
     mock_decode.return_value = admin_payload
     
-    user = await get_current_user(mock_creds)
+    user = await get_current_user(mock_request, mock_creds)
     
     assert user.is_admin is True
 
 @pytest.mark.asyncio
 @patch("libs.core.auth.jwt.decode")
 @patch("httpx.AsyncClient.get")
-async def test_get_current_user_invalid_token(mock_get, mock_decode, mock_creds):
+async def test_get_current_user_invalid_token(mock_get, mock_decode, mock_creds, mock_request):
     # JWKS 모킹
     mock_get.return_value = AsyncMock(json=lambda: {"keys": []})
     # 토큰 디코딩 실패 시뮬레이션
@@ -61,6 +67,6 @@ async def test_get_current_user_invalid_token(mock_get, mock_decode, mock_creds)
     mock_decode.side_effect = JWTError("Invalid token")
     
     with pytest.raises(HTTPException) as excinfo:
-        await get_current_user(mock_creds)
+        await get_current_user(mock_request, mock_creds)
     
     assert excinfo.value.status_code == 401

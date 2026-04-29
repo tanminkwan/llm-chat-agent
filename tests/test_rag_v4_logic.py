@@ -5,7 +5,13 @@ from libs.core.models import Collection
 
 @pytest.fixture
 def mock_db():
-    return AsyncMock()
+    db = AsyncMock()
+    db.add = MagicMock()
+    # execute().scalars().all() 계층을 기본으로 모킹
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = []
+    db.execute.return_value = mock_result
+    return db
 
 @pytest.fixture
 def service(mock_db):
@@ -36,7 +42,7 @@ class TestRAGServiceV4:
         mock_db.execute.return_value = mock_result
         service.qdrant.collection_exists.return_value = True
         
-        # Mock Qdrant search result
+        # Mock Qdrant query_points result
         mock_hit = MagicMock()
         mock_hit.id = "uuid-123"
         mock_hit.score = 0.95
@@ -46,7 +52,9 @@ class TestRAGServiceV4:
             "domain_id": 1,
             "source": "manual"
         }
-        service.qdrant.search.return_value = [mock_hit]
+        mock_res = MagicMock()
+        mock_res.points = [mock_hit]
+        service.qdrant.query_points.return_value = mock_res
 
         # When: 검색 수행
         results = await service.search_rag(query="안녕", collection_id="test_col")
@@ -56,7 +64,7 @@ class TestRAGServiceV4:
         assert results[0]["id"] == "uuid-123"
         assert results[0]["extended_content"] == "전체 테스트 내용"
         assert results[0]["source"] == "manual"
-        service.qdrant.search.assert_called_once()
+        service.qdrant.query_points.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_search_rag_without_query(self, service, mock_db):

@@ -12,6 +12,10 @@ def mock_db():
     """Mock AsyncSession"""
     db = AsyncMock()
     db.add = MagicMock()
+    # execute().scalars().all() 계층을 기본으로 모킹하여 테스트 간 충돌 방지
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = []
+    db.execute.return_value = mock_result
     return db
 
 

@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     # App Settings
     APP_NAME: str = "llm-chat-agent"
     DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
     MEMORY_MAX_MESSAGES: int = 10
 
 settings = Settings()

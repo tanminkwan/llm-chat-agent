@@ -41,6 +41,8 @@ class RAGService:
             self.qdrant.create_payload_index(collection_name, "domain_id", qmodels.PayloadSchemaType.KEYWORD)
             # created_at 인덱스 생성 (정렬 성능 향상)
             self.qdrant.create_payload_index(collection_name, "created_at", qmodels.PayloadSchemaType.KEYWORD)
+            # content 필드 텍스트 인덱스 생성 (BM25 키워드 검색용)
+            self.qdrant.create_payload_index(collection_name, "content", qmodels.PayloadSchemaType.TEXT)
             
         return col
 
@@ -141,21 +143,44 @@ class RAGService:
                 continue
 
             if query:
-                # 벡터 검색 (유사도 순)
-                query_vector = self.embeddings.embed_query(query)
-                search_result = self.qdrant.query_points(
-                    collection_name=col_name,
-                    query=query_vector,
-                    query_filter=filter_obj,
-                    limit=limit
-                ).points
-                for hit in search_result:
-                    results.append({
-                        "id": hit.id,
-                        "collection": col_name,
-                        "score": hit.score,
-                        **hit.payload
-                    })
+                if search_method == "text_matching":
+                    # [Text Matching Search] - Match Text 필터 사용
+                    # 벡터 검색 대신 텍스트 매칭 필터를 사용합니다.
+                    text_filter = qmodels.Filter(
+                        must=[
+                            qmodels.FieldCondition(key="content", match=qmodels.MatchText(text=query))
+                        ] + must_filters
+                    )
+                    scroll_result, _ = self.qdrant.scroll(
+                        collection_name=col_name,
+                        scroll_filter=text_filter,
+                        limit=limit,
+                        with_payload=True,
+                        with_vectors=False
+                    )
+                    for point in scroll_result:
+                        results.append({
+                            "id": point.id,
+                            "collection": col_name,
+                            "score": 1.0, # 텍스트 매칭은 기본 1.0점 처리
+                            **point.payload
+                        })
+                else:
+                    # [Vector Search] - 임베딩 기반 유사도 검색
+                    query_vector = self.embeddings.embed_query(query)
+                    search_result = self.qdrant.query_points(
+                        collection_name=col_name,
+                        query=query_vector,
+                        query_filter=filter_obj,
+                        limit=limit
+                    ).points
+                    for hit in search_result:
+                        results.append({
+                            "id": hit.id,
+                            "collection": col_name,
+                            "score": hit.score,
+                            **hit.payload
+                        })
             else:
                 # 쿼리 없을 경우 단순 스크롤 (전체 리스트 조회용)
                 # Qdrant의 scroll은 기본적으로 내부 순서지만, 페이로드에 created_at이 있다면 이후 정렬

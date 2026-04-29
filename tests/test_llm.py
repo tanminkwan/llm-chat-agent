@@ -50,9 +50,9 @@ async def test_custom_embedding_mock_server():
         result = custom_embeddings.embed_query("테스트 문장")
         
         assert result == mock_embeddings[0]
-        # 사용자님이 알려주신 "tests" 키를 정확히 사용하는지 확인
+        # 사용자님이 알려주신 "texts" 키를 정확히 사용하는지 확인
         _, kwargs = mock_post.call_args
-        assert kwargs["json"] == {"tests": ["테스트 문장"]}
+        assert kwargs["json"] == {"texts": ["테스트 문장"]}
 
     # [비동기 테스트]
     with patch("httpx.AsyncClient.post") as mock_apost:
@@ -69,7 +69,7 @@ async def test_custom_embedding_mock_server():
         
         assert result == mock_embeddings[0]
         _, kwargs = mock_apost.call_args
-        assert kwargs["json"] == {"tests": ["테스트 문장"]}
+        assert kwargs["json"] == {"texts": ["테스트 문장"]}
 
     # 설정 원복
     settings.EMBEDDING_USE_CUSTOM = False

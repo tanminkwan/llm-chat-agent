@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RAG 지식 관리 콘솔</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=2">
+    <link rel="stylesheet" href="/static/css/style.css?v=5">
     <style>
         /* RAG 전용 추가 스타일 */
         #main-content {
@@ -199,16 +199,36 @@
 <body>
     <div id="sidebar">
         <div class="logo" id="app-logo" style="margin-bottom: 30px;">AI 에이전트</div>
-        
+
         <nav style="display: flex; flex-direction: column; gap: 5px; flex: 1;">
-            <a href="/" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">💬 Chat</a>
-            <a href="/rag" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: var(--accent-color); background: rgba(56, 189, 248, 0.1); font-weight: 500;">📚 RAG Console</a>
-            <a href="/bulk" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📤 Batch Upload</a>
-            
+            <a href="/" class="nav-link"
+                style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;"
+                onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';"
+                onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">💬 Chat</a>
+            <a href="/rag" class="nav-link"
+                style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: var(--accent-color); background: rgba(56, 189, 248, 0.1); font-weight: 500;">📚
+                RAG Console</a>
+            <a href="/bulk" class="nav-link"
+                style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;"
+                onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';"
+                onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📤 Batch Upload</a>
+            <a href="/docs" target="_blank" class="nav-link"
+                style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;"
+                onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';"
+                onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📘 API Docs</a>
+
             <div id="admin-panel" style="display:none; flex-direction: column; gap: 5px; margin-top: 15px;">
-                <div style="font-size: 0.75rem; color: #64748b; margin-left: 15px; margin-bottom: 5px; font-weight: 600;">ADMIN TOOLS</div>
-                <a href="/admin?tab=collection" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📚 Collection</a>
-                <a href="/admin?tab=domain" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">🌐 Domain</a>
+                <div
+                    style="font-size: 0.75rem; color: #64748b; margin-left: 15px; margin-bottom: 5px; font-weight: 600;">
+                    ADMIN TOOLS</div>
+                <a href="/admin?tab=collection" class="nav-link"
+                    style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;"
+                    onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';"
+                    onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📚 Collection</a>
+                <a href="/admin?tab=domain" class="nav-link"
+                    style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;"
+                    onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';"
+                    onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">🌐 Domain</a>
             </div>
         </nav>
 
@@ -220,7 +240,8 @@
             <div id="username">사용자명</div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
                 <div id="role-badge" class="admin-badge">Admin</div>
-                <a href="/auth/logout" style="color: var(--accent-color); font-size: 0.75rem; text-decoration: none;">로그아웃</a>
+                <a href="/auth/logout"
+                    style="color: var(--accent-color); font-size: 0.75rem; text-decoration: none;">로그아웃</a>
             </div>
         </div>
     </div>
@@ -250,11 +271,11 @@
                     <label for="search-algorithm">Algorithm</label>
                     <select id="search-algorithm">
                         <option value="vector">Vector (Semantic)</option>
-                        <option value="bm25">BM25 (Keyword)</option>
-                        <option value="hybrid">Hybrid</option>
+                        <option value="text_matching">Text Matching</option>
                     </select>
                 </div>
-                <button onclick="performSearch()" style="height: auto; padding: 10px 40px; border-radius: 4px; align-self: flex-end; margin-bottom: 0px;">검색</button>
+                <button onclick="performSearch()"
+                    style="height: auto; padding: 10px 40px; border-radius: 4px; align-self: flex-end; margin-bottom: 0px;">검색</button>
             </div>
             <div class="search-row">
                 <div class="search-item query" style="flex: 1; margin-right: 0;">
@@ -303,7 +324,9 @@
                 <div class="form-group" style="flex: 1; margin-bottom: 0;">
                     <label for="form-collection">Collection 선택 *</label>
                     <select id="form-collection" required></select>
-                    <div id="form-collection-label" style="display:none; padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid #334155; border-radius: 8px; color: #cbd5e1; font-weight: 500;"></div>
+                    <div id="form-collection-label"
+                        style="display:none; padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid #334155; border-radius: 8px; color: #cbd5e1; font-weight: 500;">
+                    </div>
                 </div>
 
                 <div class="form-group" style="flex: 1; margin-bottom: 0;">
@@ -329,13 +352,14 @@
 
             <div class="btn-group">
                 <button type="submit" id="btn-save-knowledge" style="flex: 1;">저장하기</button>
-                <button type="button" id="btn-cancel-knowledge" class="btn-secondary" onclick="closeSidebar()">취소</button>
+                <button type="button" id="btn-cancel-knowledge" class="btn-secondary"
+                    onclick="closeSidebar()">취소</button>
             </div>
         </form>
     </div>
 
-    <script src="/static/js/rag.js?v=2"></script>
-    <script src="/static/js/app.js?v=2"></script>
+    <script src="/static/js/rag.js?v=5"></script>
+    <script src="/static/js/app.js?v=5"></script>
     <script>
         // 초기 로드 (RAG 전용 로직만 수행, 유저 인증 및 UI 설정은 app.js가 담당)
         window.addEventListener('DOMContentLoaded', () => {

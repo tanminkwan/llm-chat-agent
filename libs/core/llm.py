@@ -13,8 +13,8 @@ class CustomProductionEmbeddings(Embeddings):
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         with httpx.Client() as client:
-            # 프로덕션 커스텀 API 규격: {"tests": [...]}
-            response = client.post(self.base_url, json={"tests": texts}, timeout=60.0)
+            # 프로덕션 커스텀 API 규격: {"texts": [...]}
+            response = client.post(self.base_url, json={"texts": texts}, timeout=60.0)
             response.raise_for_status()
             return response.json()["embeddings"]
 
@@ -23,7 +23,7 @@ class CustomProductionEmbeddings(Embeddings):
 
     async def aembed_documents(self, texts: List[str]) -> List[List[float]]:
         async with httpx.AsyncClient() as client:
-            response = await client.post(self.base_url, json={"tests": texts}, timeout=60.0)
+            response = await client.post(self.base_url, json={"texts": texts}, timeout=60.0)
             response.raise_for_status()
             return response.json()["embeddings"]
 
