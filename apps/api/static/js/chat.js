@@ -72,10 +72,19 @@ async function sendMessage() {
                     if (dataStr === '[DONE]') continue;
                     try {
                         const data = JSON.parse(dataStr);
-                        currentAiMessage.innerText += data.content;
-                        const messagesDiv = document.getElementById('messages');
-                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                    } catch (e) { }
+                        if (data.content) {
+                            updateAiMessage(data.content);
+                        } else if (data.error) {
+                            // 백엔드에서 보낸 에러 메시지 표시
+                            updateAiMessage(`\n[ERROR] ${data.error}`);
+                            document.getElementById('loading').style.display = 'none';
+                        } else {
+                            // 예상치 못한 형식의 데이터인 경우 전체 내용 표시 (undefined 방지)
+                            updateAiMessage(`\n[SYSTEM] ${JSON.stringify(data, null, 2)}`);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing JSON:', e);
+                    }
                 }
             }
         }
@@ -96,6 +105,14 @@ function appendMessage(type, text) {
     msgDiv.style.whiteSpace = 'pre-wrap';
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
     return msgDiv;
+}
+
+function updateAiMessage(text) {
+    if (currentAiMessage) {
+        currentAiMessage.innerText += text;
+        const messagesDiv = document.getElementById('messages');
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
 }
 
 // 입력창 자동 높이 조절 및 엔터키 이벤트 처리
