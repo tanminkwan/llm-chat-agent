@@ -1,4 +1,4 @@
-# Phase 6 설계서 - 채팅 API 설계 결함 수정 (GET -> POST 전환)
+# Phase 6 설계서 - RAG 및 채팅 API 안정성 강화 (GET -> POST 전환)
 
 ## 1. 개요 및 변경 대조 (AS-IS vs TO-BE)
 

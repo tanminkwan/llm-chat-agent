@@ -92,4 +92,4 @@ class ChatRequest(BaseModel):
     model_type: str = Field("chat", description="모델 타입 (chat: 일반, reasoning: 사고형/추론형)")
     system_prompt: Optional[str] = Field(None, description="시스템 프롬프트")
     temperature: Optional[float] = Field(0.7, description="창의성 조절 (0~1)")
-    session_id: Optional[str] = Field(None, description="대화 세션 ID")
+    thread_id: Optional[str] = Field(None, description="대화 쓰레드 ID")

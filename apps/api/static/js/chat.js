@@ -3,6 +3,9 @@
  */
 let currentAiMessage = null;
 
+// 대화 쓰레드 ID 관리 (페이지 로드 시마다 항상 새로 생성하여 화면 상태와 서버 컨텍스트 동기화)
+const threadId = crypto.randomUUID();
+
 function toggleSystemPrompt() {
     const input = document.getElementById('system-prompt-input');
     if (input.style.display === 'none' || input.style.display === '') {
@@ -39,6 +42,7 @@ async function sendMessage() {
             },
             body: JSON.stringify({
                 message: message,
+                thread_id: threadId,
                 model_type: modelType,
                 system_prompt: systemPrompt,
                 temperature: parseFloat(temperature)

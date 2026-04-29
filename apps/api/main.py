@@ -420,14 +420,14 @@ async def chat(
     if not any(role in user.groups for role in ["Admin", "User"]):
         raise HTTPException(status_code=403, detail="사용 권한이 없습니다.")
 
-    actual_session_id = request.session_id or f"user_{user.sub}"
+    actual_thread_id = request.thread_id or f"user_{user.sub}"
     
     if request.model_type == "reasoning":
         llm = LLMGateway.get_reasoning_llm(temperature=request.temperature)
     else:
         llm = LLMGateway.get_chat_llm(temperature=request.temperature)
     
-    history = memory_manager.get_session_history(actual_session_id)
+    history = memory_manager.get_thread_history(actual_thread_id)
     
     async def event_generator():
         full_response = ""
@@ -441,7 +441,7 @@ async def chat(
             "request_id": request_id,
             "user_id": user_id,
             "type": "request",
-            "session_id": actual_session_id,
+            "thread_id": actual_thread_id,
             "model_type": request.model_type,
             "messages": [{"role": msg.type, "content": msg.content} for msg in messages]
         }
@@ -458,6 +458,7 @@ async def chat(
             except Exception as e:
                 error_log = {
                     "request_id": request_id,
+                    "thread_id": actual_thread_id,
                     "user_id": user_id,
                     "type": "error",
                     "error": str(e)
@@ -471,6 +472,7 @@ async def chat(
         # [LLM_LOG] JSON 구조화 로깅 (응답)
         response_log = {
             "request_id": request_id,
+            "thread_id": actual_thread_id,
             "user_id": user_id,
             "type": "response",
             "full_response": full_response
