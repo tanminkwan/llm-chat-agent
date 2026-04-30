@@ -270,8 +270,6 @@ async def list_domains(
     """현재 등록된 모든 도메인 목록을 가져옵니다."""
     if not any(role in user.groups for role in ["Admin", "User"]):
         raise HTTPException(status_code=403, detail="권한이 없습니다.")
-    return await service.list_collections() # Note: logic bug here in original, it called list_collections but should be list_domains? 
-    # Actually checking original... line 279 called service.list_domains(). I'll fix the typo I almost made.
     return await service.list_domains()
 
 @app.put("/api/domains/{dom_id}", tags=["RAG Management"], response_model=DomainRead, summary="도메인 정보 수정")
