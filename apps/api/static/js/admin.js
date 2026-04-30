@@ -1,41 +1,44 @@
 /**
- * admin.js - 관리자 CRUD 로직 (Restored & Enhanced)
+ * admin.js - 관리자 CRUD 로직 (콜렉션 / 도메인)
  */
 
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        const res = await fetch('/static/partials/admin-modal.html');
-        if (res.ok) {
-            document.getElementById('admin-modal-container').innerHTML = await res.text();
-        }
-    } catch (e) {
-        console.error('Admin modal load failed:', e);
+/**
+ * Admin 뷰 내부의 탭 전환.
+ *
+ * @param {string} tab          - 'collection' | 'domain'
+ * @param {object} [opts]       - { push?: boolean }  URL 동기화 여부
+ */
+function switchTab(tab, opts = {}) {
+    const { push = true } = opts;
+
+    const colMgr = document.getElementById('collection-manager');
+    const domMgr = document.getElementById('domain-manager');
+    const tabCol = document.getElementById('tab-collection');
+    const tabDom = document.getElementById('tab-domain');
+
+    if (!colMgr || !domMgr) return;
+
+    colMgr.style.display = (tab === 'collection') ? 'block' : 'none';
+    domMgr.style.display = (tab === 'domain') ? 'block' : 'none';
+    tabCol.classList.toggle('active', tab === 'collection');
+    tabDom.classList.toggle('active', tab === 'domain');
+
+    // 사이드바 admin-panel 내부 nav-link 활성화 동기화
+    document.querySelectorAll('a.nav-link[data-view="admin"]').forEach(link => {
+        link.classList.toggle('active', link.dataset.tab === tab);
+    });
+
+    if (tab === 'collection') {
+        loadCollections();
+    } else {
+        loadDomains();
     }
-});
 
-function openAdminModal(type) {
-    const modal = document.getElementById('admin-modal');
-    if (!modal) return;
-    
-    modal.style.display = 'block';
-    document.getElementById('collection-manager').style.display = (type === 'collection') ? 'block' : 'none';
-    document.getElementById('domain-manager').style.display = (type === 'domain') ? 'block' : 'none';
-    document.getElementById('modal-title').innerText = (type === 'collection') ? 'RAG 콜렉션 관리' : '지식 도메인 관리';
-
-    if (type === 'collection') loadCollections();
-    else loadDomains();
-}
-
-function closeModal() {
-    document.getElementById('admin-modal').style.display = 'none';
-}
-
-window.addEventListener('click', function(event) {
-    const modal = document.getElementById('admin-modal');
-    if (event.target === modal) {
-        closeModal();
+    if (push) {
+        const url = `/admin?tab=${tab}`;
+        window.history.pushState({}, '', url);
     }
-});
+}
 
 // --- Collection CRUD ---
 async function saveCollection() {
@@ -51,7 +54,6 @@ async function saveCollection() {
         return;
     }
 
-    // 유효성 검사 (서버와 동일한 규칙)
     if (!/^[a-zA-Z0-9_-]+$/.test(collection_name)) {
         alert('콜렉션 ID는 영문, 숫자, 하이픈(-), 언더바(_)만 가능합니다.');
         return;
@@ -64,12 +66,12 @@ async function saveCollection() {
     const res = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            collection_name, 
-            name, 
-            description, 
-            snippet_size_limit, 
-            search_method 
+        body: JSON.stringify({
+            collection_name,
+            name,
+            description,
+            snippet_size_limit,
+            search_method
         })
     });
 
@@ -103,12 +105,12 @@ function editCollection(c) {
     const colNameInput = document.getElementById('col-collection-name');
     colNameInput.value = c.collection_name;
     colNameInput.disabled = true; // PK는 수정 불가
-    
+
     document.getElementById('col-name').value = c.name;
     document.getElementById('col-desc').value = c.description || '';
     document.getElementById('col-snippet').value = c.snippet_size_limit;
     document.getElementById('col-search').value = c.search_method;
-    
+
     document.getElementById('col-form-title').innerText = '콜렉션 수정';
     document.getElementById('col-save-btn').innerText = '수정 완료';
 }
@@ -117,7 +119,7 @@ function resetColForm() {
     const colNameInput = document.getElementById('col-collection-name');
     colNameInput.value = '';
     colNameInput.disabled = false;
-    
+
     document.getElementById('col-name').value = '';
     document.getElementById('col-desc').value = '';
     document.getElementById('col-snippet').value = 500;
@@ -204,4 +206,12 @@ async function deleteDomain(id) {
     } else {
         alert('삭제 실패');
     }
+}
+
+/**
+ * Admin 뷰 초기화 - SPA 라우터가 첫 진입 시 호출
+ * (실제 데이터 로드는 switchTab() 내부에서 수행)
+ */
+function initAdmin() {
+    // 현재는 별도 로직 없음 (switchTab에서 처리)
 }

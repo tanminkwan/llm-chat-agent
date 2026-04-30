@@ -25,6 +25,7 @@ body {
     flex-direction: column;
     padding: 20px;
     border-right: 1px solid #334155;
+    flex-shrink: 0;
 }
 
 .logo {
@@ -51,14 +52,81 @@ body {
     margin-top: 5px;
 }
 
-/* 채팅 영역 */
-#chat-container {
+/* ===== 사이드바 네비게이션 (단일 클래스로 active/hover 처리) ===== */
+.nav-link {
+    display: block;
+    text-decoration: none;
+    padding: 12px 15px;
+    border-radius: 8px;
+    color: #94a3b8;
+    transition: 0.2s;
+    font-weight: normal;
+}
+
+.nav-link:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-link.active {
+    color: var(--accent-color);
+    background: rgba(56, 189, 248, 0.1);
+    font-weight: 500;
+}
+
+/* ===== SPA 뷰 컨테이너 ===== */
+#view-container {
     flex: 1;
     display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.view {
+    display: none;
+    flex: 1;
+    min-height: 0;
+}
+
+.view.active {
+    display: flex;
+}
+
+/* Chat 뷰: 세로 방향 컬럼 */
+#view-chat {
     flex-direction: column;
     position: relative;
 }
 
+/* RAG 뷰 */
+#view-rag {
+    flex-direction: column;
+    padding: 30px;
+    overflow-y: auto;
+    gap: 30px;
+}
+
+/* Bulk 뷰 */
+#view-bulk {
+    flex-direction: column;
+    padding: 30px;
+    overflow-y: auto;
+}
+
+/* Admin 뷰 */
+#view-admin {
+    flex-direction: column;
+    padding: 30px;
+    overflow-y: auto;
+}
+
+/* Chat 전용 사이드바 영역 (다른 뷰에서는 숨김) */
+body:not([data-view="chat"]) .chat-only {
+    display: none !important;
+}
+
+/* 채팅 영역 */
 #messages {
     flex: 1;
     overflow-y: auto;
@@ -307,4 +375,231 @@ input#temperature {
 
 .admin-table th {
     color: var(--accent-color);
+}
+
+/* ===== RAG 뷰 전용 ===== */
+.search-panel {
+    background: var(--sidebar-color);
+    padding: 25px;
+    border-radius: 16px;
+    border: 1px solid #334155;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.search-row {
+    display: flex;
+    gap: 15px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.search-item {
+    flex: 1;
+    min-width: 150px;
+}
+
+.search-item.query {
+    flex: 3;
+    min-width: 300px;
+}
+
+.search-item label {
+    display: block;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-bottom: 8px;
+}
+
+textarea.query-input {
+    width: 100%;
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: white;
+    border-radius: 8px;
+    padding: 10px;
+    resize: vertical;
+    min-height: 40px;
+    font-family: inherit;
+}
+
+.table-container {
+    background: var(--sidebar-color);
+    border-radius: 16px;
+    border: 1px solid #334155;
+    overflow-y: auto;
+    max-height: calc(100vh - 280px);
+}
+
+.rag-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.rag-table th {
+    background: rgba(255, 255, 255, 0.03);
+    text-align: left;
+    padding: 15px;
+    color: var(--accent-color);
+    font-size: 0.9rem;
+    border-bottom: 1px solid #334155;
+}
+
+.rag-table td {
+    padding: 15px;
+    border-bottom: 1px solid #334155;
+    font-size: 0.85rem;
+    vertical-align: top;
+}
+
+.text-truncate {
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.text-truncate:hover {
+    color: var(--accent-color);
+}
+
+.source-badge {
+    background: #334155;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+/* 액션 사이드바 (RAG 등록/수정) */
+#action-sidebar {
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 700px;
+    max-width: 90vw;
+    box-sizing: border-box;
+    height: 100vh;
+    background: var(--sidebar-color);
+    border-left: 1px solid #334155;
+    z-index: 1001;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 30px;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+}
+
+#action-sidebar.active {
+    transform: translateX(0);
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
+    z-index: 1000;
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.sidebar-header h2 {
+    margin: 0;
+    color: var(--accent-color);
+}
+
+.btn-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn-secondary {
+    background: #475569;
+    color: white;
+}
+
+.btn-danger {
+    background: #ef4444;
+    color: white;
+}
+
+/* ===== Bulk 뷰 전용 ===== */
+.upload-section {
+    background: var(--sidebar-color);
+    padding: 25px;
+    border-radius: 16px;
+    border: 1px solid #334155;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.progress-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+.progress-modal {
+    background: #1e293b;
+    padding: 30px;
+    border-radius: 12px;
+    border: 1px solid #334155;
+    width: 400px;
+    text-align: center;
+}
+
+/* ===== Admin 뷰 전용 ===== */
+.admin-section {
+    background: var(--sidebar-color);
+    padding: 25px;
+    border-radius: 16px;
+    border: 1px solid #334155;
+    margin-bottom: 30px;
+}
+
+.nav-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #334155;
+    padding-bottom: 10px;
+}
+
+.nav-tab {
+    padding: 10px 20px;
+    color: #94a3b8;
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.nav-tab:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-tab.active {
+    color: var(--accent-color);
+    border-bottom: 3px solid var(--accent-color);
 }

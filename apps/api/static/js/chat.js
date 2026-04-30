@@ -3,7 +3,7 @@
  */
 let currentAiMessage = null;
 
-// 대화 쓰레드 ID 관리 (페이지 로드 시마다 항상 새로 생성하여 화면 상태와 서버 컨텍스트 동기화)
+// 대화 쓰레드 ID 관리 (SPA 세션 동안 유지)
 const threadId = crypto.randomUUID();
 
 function toggleSystemPrompt() {
@@ -75,11 +75,9 @@ async function sendMessage() {
                         if (data.content) {
                             updateAiMessage(data.content);
                         } else if (data.error) {
-                            // 백엔드에서 보낸 에러 메시지 표시
                             updateAiMessage(`\n[ERROR] ${data.error}`);
                             document.getElementById('loading').style.display = 'none';
                         } else {
-                            // 예상치 못한 형식의 데이터인 경우 전체 내용 표시 (undefined 방지)
                             updateAiMessage(`\n[SYSTEM] ${JSON.stringify(data, null, 2)}`);
                         }
                     } catch (e) {
@@ -115,9 +113,10 @@ function updateAiMessage(text) {
     }
 }
 
-// 입력창 자동 높이 조절 및 엔터키 이벤트 처리
-document.addEventListener('DOMContentLoaded', () => {
+function initChat() {
     const userInput = document.getElementById('user-input');
+    if (!userInput) return;
+
     userInput.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -129,4 +128,4 @@ document.addEventListener('DOMContentLoaded', () => {
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
     });
-});
+}

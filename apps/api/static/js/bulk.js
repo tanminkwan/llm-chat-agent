@@ -1,14 +1,13 @@
+/**
+ * bulk.js - 엑셀 일괄 업로드/삭제 로직
+ */
 let currentTaskId = null;
 
-document.addEventListener('DOMContentLoaded', async () => {
-    await loadDropdowns();
-});
-
-async function loadDropdowns() {
+async function loadBulkDropdowns() {
     try {
         const colRes = await fetch('/api/collections');
         const domRes = await fetch('/api/domains');
-        
+
         if (colRes.ok) {
             const cols = await colRes.json();
             const colSelect = document.getElementById('bulk-collection');
@@ -18,7 +17,7 @@ async function loadDropdowns() {
                 opt.value = c.collection_name;
                 opt.textContent = c.name;
                 colSelect.appendChild(opt);
-                
+
                 const opt2 = opt.cloneNode(true);
                 delColSelect.appendChild(opt2);
             });
@@ -27,14 +26,13 @@ async function loadDropdowns() {
             const doms = await domRes.json();
             const domSelect = document.getElementById('bulk-domain');
             const delDomSelect = document.getElementById('delete-domain');
-            
-            // 삭제용 도메인에는 '전체' 옵션 추가 고려 가능하나, 여기선 일단 필수로 선택하게 함
+
             doms.forEach(d => {
                 const opt = document.createElement('option');
                 opt.value = d.id;
                 opt.textContent = d.name;
                 domSelect.appendChild(opt);
-                
+
                 const opt2 = opt.cloneNode(true);
                 delDomSelect.appendChild(opt2);
             });
@@ -65,7 +63,7 @@ async function confirmDelete() {
 
         const res = await fetch(url);
         if (!res.ok) throw new Error("Count failed");
-        
+
         const data = await res.json();
         const count = data.count;
 
@@ -144,7 +142,7 @@ async function startUpload() {
 
         const data = await res.json();
         currentTaskId = data.task_id;
-        
+
         pollProgress(currentTaskId);
     } catch (e) {
         alert("Server error");
@@ -166,7 +164,7 @@ function pollProgress(taskId) {
                     clearInterval(interval);
                     document.getElementById('prog-status').innerText = '작업이 완료되었습니다!';
                     document.getElementById('btn-close-prog').style.display = 'inline-block';
-                    
+
                     if (status.error > 0) {
                         document.getElementById('btn-download-error').style.display = 'inline-block';
                     }
@@ -187,4 +185,11 @@ function downloadErrors() {
     if (currentTaskId) {
         window.location.href = `/api/rag/bulk-error-download/${currentTaskId}`;
     }
+}
+
+/**
+ * Bulk 뷰 초기화 - SPA 라우터가 첫 진입 시 호출
+ */
+async function initBulk() {
+    await loadBulkDropdowns();
 }

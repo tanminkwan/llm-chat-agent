@@ -5,27 +5,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">AI 에이전트</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=5">
+    <link rel="stylesheet" href="/static/css/style.css?v=9">
 </head>
 
-<body>
+<body data-view="chat">
+    <!-- 공통 사이드바 (모든 뷰가 공유) -->
     <div id="sidebar">
         <div class="logo" id="app-logo" style="margin-bottom: 30px;">AI 에이전트</div>
-        
+
         <nav style="display: flex; flex-direction: column; gap: 5px; flex: 1;">
-            <a href="/" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: var(--accent-color); background: rgba(56, 189, 248, 0.1); font-weight: 500;">💬 Chat</a>
-            <a href="/rag" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📚 RAG Console</a>
-            <a href="/bulk" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📤 Batch Upload</a>
-            <a href="/docs" target="_blank" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📘 API Docs</a>
-            
+            <a href="/" class="nav-link" data-view="chat">💬 Chat</a>
+            <a href="/rag" class="nav-link" data-view="rag">📚 RAG Console</a>
+            <a href="/bulk" class="nav-link" data-view="bulk">📤 Batch Upload</a>
+            <a href="/docs" target="_blank" class="nav-link">📘 API Docs</a>
+
             <div id="admin-panel" style="display:none; flex-direction: column; gap: 5px; margin-top: 15px;">
-                <div style="font-size: 0.75rem; color: #64748b; margin-left: 15px; margin-bottom: 5px; font-weight: 600;">ADMIN TOOLS</div>
-                <a href="/admin?tab=collection" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📚 Collection</a>
-                <a href="/admin?tab=domain" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">🌐 Domain</a>
+                <div
+                    style="font-size: 0.75rem; color: #64748b; margin-left: 15px; margin-bottom: 5px; font-weight: 600;">
+                    ADMIN TOOLS</div>
+                <a href="/admin?tab=collection" class="nav-link" data-view="admin" data-tab="collection">📚 Collection</a>
+                <a href="/admin?tab=domain" class="nav-link" data-view="admin" data-tab="domain">🌐 Domain</a>
             </div>
         </nav>
 
-        <div class="settings-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #334155; background: transparent; padding-left: 0; padding-right: 0;">
+        <!-- Chat 전용 설정 (다른 뷰에서는 CSS로 숨김) -->
+        <div id="model-settings" class="settings-section chat-only"
+            style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #334155; background: transparent; padding-left: 0; padding-right: 0;">
             <div class="settings-title" style="margin-bottom: 10px;">Model Settings</div>
             <div class="temp-group">
                 <label class="temp-label" for="temperature">Temperature</label>
@@ -52,41 +57,322 @@
         </div>
     </div>
 
-    <div id="chat-container">
-        <!-- 시스템 프롬프트 설정 영역 -->
-        <div id="system-prompt-config"
-            style="padding: 10px 20%; background: #1e293b; border-bottom: 1px solid #334155;">
-            <div style="font-size: 0.8rem; color: var(--accent-color); margin-bottom: 5px; cursor: pointer;"
-                onclick="toggleSystemPrompt()">
-                ⚙️ 시스템 프롬프트 설정 (클릭하여 열기/닫기)
+    <!-- 뷰 컨테이너: 각 뷰는 항상 DOM에 존재하며 active 클래스로 토글 -->
+    <main id="view-container">
+
+        <!-- ==================== Chat View ==================== -->
+        <section id="view-chat" class="view active">
+            <div id="system-prompt-config"
+                style="padding: 10px 20%; background: #1e293b; border-bottom: 1px solid #334155;">
+                <div style="font-size: 0.8rem; color: var(--accent-color); margin-bottom: 5px; cursor: pointer;"
+                    onclick="toggleSystemPrompt()">
+                    ⚙️ 시스템 프롬프트 설정 (클릭하여 열기/닫기)
+                </div>
+                <textarea id="system-prompt-input"
+                    style="display:none; width: 100%; background: #0f172a; color: white; border: 1px solid #475569; border-radius: 5px; padding: 10px; font-family: inherit; resize: vertical;"
+                    rows="3" placeholder="여기에 사용자 정의 시스템 프롬프트를 입력하세요..."></textarea>
             </div>
-            <textarea id="system-prompt-input"
-                style="display:none; width: 100%; background: #0f172a; color: white; border: 1px solid #475569; border-radius: 5px; padding: 10px; font-family: inherit; resize: vertical;"
-                rows="3" placeholder="여기에 사용자 정의 시스템 프롬프트를 입력하세요..."></textarea>
+
+            <div id="messages">
+                <div class="message ai">반가워요! 무엇을 도와드릴까요?</div>
+            </div>
+            <div id="input-container">
+                <div class="input-box">
+                    <select id="model-select"
+                        style="background:transparent; color:white; border:none; border-right:1px solid #475569; margin-right:10px; outline:none; cursor:pointer;">
+                    </select>
+                    <textarea id="user-input" placeholder="메시지를 입력하세요..." rows="1"></textarea>
+                    <button onclick="sendMessage()" style="border-radius: 4px;">전송</button>
+                </div>
+                <div id="loading" class="loading">AI가 생각 중...</div>
+            </div>
+        </section>
+
+        <!-- ==================== RAG View ==================== -->
+        <section id="view-rag" class="view">
+            <header style="display: flex; justify-content: space-between; align-items: center;">
+                <h1>RAG Retrieval Console</h1>
+                <button onclick="openSidebar('create')" style="border-radius: 4px; padding: 8px 16px;">+ 신규 지식 등록</button>
+            </header>
+
+            <div class="search-panel">
+                <div class="search-row">
+                    <div class="search-item">
+                        <label for="search-collection">Collection</label>
+                        <select id="search-collection">
+                            <option value="all">ALL</option>
+                        </select>
+                    </div>
+                    <div class="search-item">
+                        <label for="search-domain">Domain</label>
+                        <select id="search-domain">
+                            <option value="all">ALL</option>
+                        </select>
+                    </div>
+                    <div class="search-item">
+                        <label for="search-algorithm">Algorithm</label>
+                        <select id="search-algorithm">
+                            <option value="vector">Vector (Semantic)</option>
+                            <option value="text_matching">Text Matching</option>
+                        </select>
+                    </div>
+                    <button onclick="performSearch()"
+                        style="height: auto; padding: 10px 40px; border-radius: 4px; align-self: flex-end; margin-bottom: 0px;">검색</button>
+                </div>
+                <div class="search-row">
+                    <div class="search-item query" style="flex: 1; margin-right: 0;">
+                        <label for="search-query">Query Vector Source</label>
+                        <textarea id="search-query" class="query-input" rows="3" style="width: 100%;"
+                            placeholder="Enter query text for embedding..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="rag-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px; text-align: center;">Rank</th>
+                            <th>Collection</th>
+                            <th>Domain</th>
+                            <th>Content (Embedded)</th>
+                            <th>Extended Payload</th>
+                            <th>Source</th>
+                            <th>Score</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rag-data-body">
+                        <tr><td colspan="8" style="text-align:center; padding: 40px; color: #94a3b8;">조회 조건을 선택하고 검색 버튼을 눌러주세요.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ==================== Bulk View ==================== -->
+        <section id="view-bulk" class="view">
+            <h1 style="margin-top: 0; margin-bottom: 20px;">Excel Batch Upload</h1>
+
+            <div class="upload-section">
+                <h3 style="margin-top:0">Select Target & Upload</h3>
+                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Collection</label>
+                        <select id="bulk-collection"></select>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Domain</label>
+                        <select id="bulk-domain"></select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Excel File (.xlsx)</label>
+                    <input type="file" id="bulk-file" accept=".xlsx, .xls"
+                        style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; border-radius: 4px; color: white;">
+                    <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 5px;">* 엑셀 파일에는 반드시 <strong>Content</strong> 열(Column)이 있어야 합니다. <strong>Extended Content</strong> 열이 비어있으면 Content 값으로 자동 복사됩니다.</p>
+                </div>
+
+                <button onclick="startUpload()"
+                    style="width: 100%; margin-top: 10px; border-radius: 4px; padding: 12px; font-size: 1rem;">Upload Excel</button>
+            </div>
+
+            <div class="upload-section" style="margin-top: 30px; border-color: #ef444433;">
+                <h3 style="margin-top:0; color: #ef4444;">Batch Delete</h3>
+                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px;">콜렉션, 도메인, 소스값을 기준으로 데이터를 일괄 삭제합니다.</p>
+
+                <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Collection</label>
+                        <select id="delete-collection"></select>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Domain</label>
+                        <select id="delete-domain"></select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Source Value (파일명 등)</label>
+                    <input type="text" id="delete-source" placeholder="예: sample.xlsx"
+                        style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; border-radius: 4px; color: white;">
+                </div>
+
+                <button onclick="confirmDelete()"
+                    style="width: 100%; margin-top: 10px; border-radius: 4px; padding: 12px; font-size: 1rem; background: #ef4444; color: white;">Batch Delete</button>
+            </div>
+        </section>
+
+        <!-- ==================== Admin View ==================== -->
+        <section id="view-admin" class="view">
+            <h1 style="margin-top: 0; margin-bottom: 20px;">관리자 대시보드</h1>
+
+            <div class="nav-tabs">
+                <div class="nav-tab active" id="tab-collection" onclick="switchTab('collection')">📚 Collection</div>
+                <div class="nav-tab" id="tab-domain" onclick="switchTab('domain')">🌐 Domain</div>
+            </div>
+
+            <div id="collection-manager" class="admin-section">
+                <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 30px;">
+                    <div>
+                        <h3 id="col-form-title">콜렉션 등록</h3>
+                        <div class="form-group">
+                            <label>Collection ID (영문/숫자/-/_)</label>
+                            <input type="text" id="col-collection-name" placeholder="예: qna_docs">
+                        </div>
+                        <div class="form-group">
+                            <label>표시 이름 (Display Name)</label>
+                            <input type="text" id="col-name" placeholder="예: 법률_데이터">
+                        </div>
+                        <div class="form-group">
+                            <label>설명 (Description)</label>
+                            <textarea id="col-desc" rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Snippet Size Limit (Byte)</label>
+                            <input type="number" id="col-snippet" value="500">
+                        </div>
+                        <div class="form-group">
+                            <label>Search Algorithm</label>
+                            <select id="col-search">
+                                <option value="vector">Vector Distance (Semantic)</option>
+                                <option value="text_matching">Text Matching</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button onclick="saveCollection()" id="col-save-btn"
+                                style="flex: 1; border-radius: 4px;">저장하기</button>
+                            <button onclick="resetColForm()"
+                                style="flex: 0.5; background: #64748b; border-radius: 4px;">초기화</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3>등록된 콜렉션</h3>
+                        <div style="max-height: 450px; overflow-y: auto;">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="collection-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="domain-manager" class="admin-section" style="display:none">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <div>
+                        <h3 id="dom-form-title">도메인 등록</h3>
+                        <input type="hidden" id="dom-id">
+                        <div class="form-group">
+                            <label>Domain Name</label>
+                            <input type="text" id="dom-name" placeholder="예: 과학, 경제, IT">
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button onclick="saveDomain()" id="dom-save-btn"
+                                style="flex: 1; border-radius: 4px;">저장하기</button>
+                            <button onclick="resetDomForm()"
+                                style="flex: 0.5; background: #64748b; border-radius: 4px;">초기화</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3>등록된 도메인</h3>
+                        <div style="max-height: 450px; overflow-y: auto;">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="domain-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 전역 오버레이/사이드바 (RAG, Bulk 뷰가 공유) -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+    <div id="action-sidebar">
+        <div class="sidebar-header">
+            <h2 id="sidebar-title">신규 지식 등록</h2>
+            <span class="close" onclick="closeSidebar()">&times;</span>
         </div>
 
-        <div id="messages">
-            <div class="message ai">반가워요! 무엇을 도와드릴까요?</div>
-        </div>
-        <div id="input-container">
-            <div class="input-box">
-                <select id="model-select"
-                    style="background:transparent; color:white; border:none; border-right:1px solid #475569; margin-right:10px; outline:none; cursor:pointer;">
-                </select>
-                <textarea id="user-input" placeholder="메시지를 입력하세요..." rows="1"></textarea>
-                <button onclick="sendMessage()" style="border-radius: 4px;">전송</button>
+        <form id="knowledge-form" onsubmit="saveKnowledge(event)">
+            <input type="hidden" id="form-mode" value="create">
+            <input type="hidden" id="edit-point-id">
+
+            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label for="form-collection">Collection 선택 *</label>
+                    <select id="form-collection" required></select>
+                    <div id="form-collection-label"
+                        style="display:none; padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid #334155; border-radius: 8px; color: #cbd5e1; font-weight: 500;">
+                    </div>
+                </div>
+
+                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label for="form-domain">Domain 선택 *</label>
+                    <select id="form-domain" required></select>
+                </div>
             </div>
-            <div id="loading" class="loading">AI가 생각 중...</div>
+
+            <div class="form-group">
+                <label for="form-source">출처 (파일명 또는 참조명) *</label>
+                <input type="text" id="form-source" placeholder="예: 운영가이드 v1.0" required>
+            </div>
+
+            <div class="form-group">
+                <label for="form-content">임베딩용 문구 (Content) *</label>
+                <textarea id="form-content" rows="12" placeholder="임베딩 모델의 입력이 될 핵심 문장을 입력하세요." required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="form-extended">실제 노출 내용 (Extended Content) *</label>
+                <textarea id="form-extended" rows="12" placeholder="검색 결과로 노출될 전체 내용을 입력하세요." required></textarea>
+            </div>
+
+            <div class="btn-group">
+                <button type="submit" id="btn-save-knowledge" style="flex: 1;">저장하기</button>
+                <button type="button" id="btn-cancel-knowledge" class="btn-secondary"
+                    onclick="closeSidebar()">취소</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Bulk 진행률 모달 -->
+    <div id="progress-overlay" class="progress-modal-overlay">
+        <div class="progress-modal">
+            <h2 style="margin-top: 0">Uploading...</h2>
+            <div style="font-size: 1.2rem; margin: 20px 0;">
+                <div>Total: <span id="prog-total">0</span></div>
+                <div style="color: #10b981;">Success: <span id="prog-success">0</span></div>
+                <div style="color: #ef4444;">Error: <span id="prog-error">0</span></div>
+            </div>
+            <div id="prog-status" style="margin-bottom: 20px; color: #94a3b8;">작업이 진행 중입니다. 화면을 조작하거나 닫지 마세요.</div>
+
+            <button id="btn-close-prog" onclick="closeProgress()" style="display: none; background: #64748b; border-radius: 4px; margin-right: 10px;">닫기</button>
+            <button id="btn-download-error" style="display: none; background: #ef4444; border-radius: 4px;" onclick="downloadErrors()">에러 내역 다운로드</button>
         </div>
     </div>
 
-    <!-- Admin 모달은 여기에 동적으로 로드됨 -->
-    <div id="admin-modal-container"></div>
-
-    <!-- JS 모듈 (SRP: 각 파일이 하나의 책임만 담당) -->
-    <script src="/static/js/chat.js?v=8"></script>
-    <script src="/static/js/admin.js?v=5"></script>
-    <script src="/static/js/app.js?v=5"></script>
+    <!-- JS 모듈 -->
+    <script src="/static/js/chat.js?v=9"></script>
+    <script src="/static/js/rag.js?v=9"></script>
+    <script src="/static/js/bulk.js?v=9"></script>
+    <script src="/static/js/admin.js?v=9"></script>
+    <script src="/static/js/app.js?v=9"></script>
 </body>
 
 </html>

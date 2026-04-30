@@ -113,22 +113,22 @@ function getDomainName(id) {
  */
 function openSidebar(mode) {
     document.getElementById('form-mode').value = mode;
-    
+
     let title = 'Create Vector Point';
     if (mode === 'edit') title = 'Edit Vector Point';
     if (mode === 'show') title = 'View Vector Point';
     document.getElementById('sidebar-title').innerText = title;
-    
+
     // 라벨 텍스트 동적 처리 (불필요한 '선택 *' 제거)
     const isShow = (mode === 'show');
     const isEdit = (mode === 'edit');
-    
+
     document.querySelector('label[for="form-collection"]').innerText = (isEdit || isShow) ? 'Collection' : 'Collection 선택 *';
     document.querySelector('label[for="form-domain"]').innerText = isShow ? 'Domain' : 'Domain 선택 *';
     document.querySelector('label[for="form-source"]').innerText = isShow ? '출처 (파일명 또는 참조명)' : '출처 (파일명 또는 참조명) *';
     document.querySelector('label[for="form-content"]').innerText = isShow ? '임베딩용 문구 (Content)' : '임베딩용 문구 (Content) *';
     document.querySelector('label[for="form-extended"]').innerText = isShow ? '실제 노출 내용 (Extended Content)' : '실제 노출 내용 (Extended Content) *';
-    
+
     if (mode === 'create') {
         document.getElementById('knowledge-form').reset();
         document.getElementById('form-collection').style.display = 'block';
@@ -138,7 +138,7 @@ function openSidebar(mode) {
         document.getElementById('form-source').readOnly = false;
         document.getElementById('form-content').readOnly = false;
         document.getElementById('form-extended').readOnly = false;
-        
+
         // 버튼 텍스트 및 상태 초기화
         const saveBtn = document.getElementById('btn-save-knowledge');
         const cancelBtn = document.getElementById('btn-cancel-knowledge');
@@ -165,12 +165,12 @@ function openEditSidebar(item, mode = 'edit') {
     openSidebar(mode);
     document.getElementById('edit-point-id').value = item.id;
     document.getElementById('form-collection').value = item.collection; // API 전송용
-    
+
     // 수정/조회 시 Select 숨기고 Label 표시
     document.getElementById('form-collection').style.display = 'none';
     document.getElementById('form-collection-label').style.display = 'block';
     document.getElementById('form-collection-label').innerText = item.collection;
-    
+
     document.getElementById('form-domain').value = item.domain_id;
     document.getElementById('form-source').value = item.source || '';
     document.getElementById('form-content').value = item.content;
@@ -181,15 +181,15 @@ function openEditSidebar(item, mode = 'edit') {
     document.getElementById('form-source').readOnly = isReadonly;
     document.getElementById('form-content').readOnly = isReadonly;
     document.getElementById('form-extended').readOnly = isReadonly;
-    
+
     // 버튼 상태 제어 (조회 시 저장 숨김 & 취소->닫기 변경)
     const saveBtn = document.getElementById('btn-save-knowledge');
     const cancelBtn = document.getElementById('btn-cancel-knowledge');
-    
+
     if (saveBtn) {
         saveBtn.style.display = isReadonly ? 'none' : 'block';
     }
-    
+
     if (cancelBtn) {
         cancelBtn.innerText = isReadonly ? '닫기' : '취소';
         cancelBtn.style.flex = isReadonly ? '1' : 'initial';
@@ -202,7 +202,7 @@ function openEditSidebar(item, mode = 'edit') {
 async function saveKnowledge(event) {
     event.preventDefault();
     const mode = document.getElementById('form-mode').value;
-    
+
     const payload = {
         collection_name: document.getElementById('form-collection').value,
         domain_id: parseInt(document.getElementById('form-domain').value),
@@ -253,10 +253,19 @@ async function deletePoint(colName, pointId) {
     }
 }
 
-// Enter 키로 검색 지원
-document.getElementById('search-query')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        performSearch();
+/**
+ * RAG 뷰 초기화 - SPA 라우터가 첫 진입 시 호출
+ */
+function initRag() {
+    loadDropdowns();
+
+    const queryInput = document.getElementById('search-query');
+    if (queryInput) {
+        queryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                performSearch();
+            }
+        });
     }
-});
+}

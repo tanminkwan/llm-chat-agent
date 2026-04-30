@@ -120,54 +120,54 @@ async def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/auth/login")
 
-@app.get("/", tags=["UI"], summary="메인 채팅 화면")
+# --- SPA UI 라우트 ---
+# 모든 UI 라우트는 동일한 SPA 셸(index.html)을 반환한다.
+# 클라이언트 측 라우터(app.js)가 URL 경로를 기준으로 알맞은 뷰를 표시하므로,
+# 직접 URL로 접근하거나 새로고침해도 의도한 화면이 그려진다.
+SPA_INDEX_PATH = os.path.join(static_dir, "index.html")
+
+
+def _require_user(request: Request, admin_only: bool = False):
+    """세션 기반 인증 체크. 인증 실패 시 RedirectResponse, 통과 시 None."""
+    user = request.session.get('user')
+    if not user:
+        return RedirectResponse(url="/auth/login")
+
+    groups = user.get('groups', [])
+    if admin_only:
+        if "Admin" not in groups:
+            return RedirectResponse(url="/static/unauthorized.html")
+    else:
+        if not any(role in groups for role in ["Admin", "User"]):
+            return RedirectResponse(url="/static/unauthorized.html")
+    return None
+
+
+@app.get("/", tags=["UI"], summary="SPA 진입점 - Chat 화면")
 async def root(request: Request):
-    """로그인 여부를 체크한 뒤 메인 채팅 인터페이스(index.html)를 반환합니다."""
-    # [진단 로그]
-    import os
-    path = "apps/api/static/index.html"
-    exists = os.path.exists(path)
-    contains_rag = False
-    if exists:
-        with open(path, "r") as f:
-            contains_rag = "rag" in f.read()
-    print(f"DEBUG: CWD={os.getcwd()}, Path={path}, Exists={exists}, Contains 'rag'={contains_rag}")
+    """SPA 메인 진입점. 클라이언트 라우터가 Chat 뷰를 렌더링한다."""
+    redirect = _require_user(request)
+    if redirect:
+        return redirect
+    return FileResponse(SPA_INDEX_PATH)
 
-    user = request.session.get('user')
-    if not user:
-        return RedirectResponse(url="/auth/login")
-    
-    groups = user.get('groups', [])
-    if not any(role in groups for role in ["Admin", "User"]):
-        return RedirectResponse(url="/static/unauthorized.html")
-    
-    return FileResponse(path)
 
-@app.get("/rag", tags=["UI"], summary="RAG 콘솔 화면")
+@app.get("/rag", tags=["UI"], summary="SPA - RAG 콘솔 화면")
 async def rag_console(request: Request):
-    """지식 베이스 관리 및 검색 테스트를 위한 RAG 콘솔 페이지를 반환합니다."""
-    user = request.session.get('user')
-    if not user:
-        return RedirectResponse(url="/auth/login")
-    
-    groups = user.get('groups', [])
-    if not any(role in groups for role in ["Admin", "User"]):
-        return RedirectResponse(url="/static/unauthorized.html")
-    
-    return FileResponse("apps/api/static/rag.html")
+    """동일한 SPA 셸을 반환. 클라이언트 라우터가 RAG 뷰를 활성화한다."""
+    redirect = _require_user(request)
+    if redirect:
+        return redirect
+    return FileResponse(SPA_INDEX_PATH)
 
-@app.get("/admin", tags=["UI"], summary="관리자 설정 화면")
+
+@app.get("/admin", tags=["UI"], summary="SPA - 관리자 대시보드")
 async def admin_console(request: Request):
-    """콜렉션 및 도메인 관리를 위한 관리자 전용 대시보드 페이지를 반환합니다."""
-    user = request.session.get('user')
-    if not user:
-        return RedirectResponse(url="/auth/login")
-    
-    groups = user.get('groups', [])
-    if "Admin" not in groups:
-        return RedirectResponse(url="/static/unauthorized.html")
-    
-    return FileResponse("apps/api/static/admin.html")
+    """동일한 SPA 셸을 반환. Admin 그룹만 접근 가능."""
+    redirect = _require_user(request, admin_only=True)
+    if redirect:
+        return redirect
+    return FileResponse(SPA_INDEX_PATH)
 
 async def get_current_user(request: Request) -> UserInfo:
     """세션에서 사용자 정보를 가져오는 의존성 주입 함수"""
@@ -546,12 +546,13 @@ async def process_bulk_upload_task(task_id: str, file_content: bytes, filename: 
         
     global_bulk_tasks[task_id]['done'] = True
 
-@app.get("/bulk")
+@app.get("/bulk", tags=["UI"], summary="SPA - 엑셀 일괄 업로드 화면")
 async def bulk_page(request: Request):
-    user = request.session.get('user')
-    if not user:
-        return RedirectResponse(url="/auth/login")
-    return FileResponse(os.path.join(static_dir, "bulk.html"))
+    """동일한 SPA 셸을 반환. 클라이언트 라우터가 Bulk 뷰를 활성화한다."""
+    redirect = _require_user(request)
+    if redirect:
+        return redirect
+    return FileResponse(SPA_INDEX_PATH)
 
 @app.post("/api/rag/bulk-upload", tags=["Bulk Operations"], summary="엑셀 일괄 업로드 시작")
 async def start_bulk_upload(
