@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch Upload - AI 에이전트</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=5">
+    <style>
+        #main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+        .upload-section {
+            background: var(--sidebar-color);
+            padding: 25px;
+            border-radius: 16px;
+            border: 1px solid #334155;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        /* Modal for progress */
+        .progress-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+        .progress-modal {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            width: 400px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <div class="logo" id="app-logo" style="margin-bottom: 30px;">AI 에이전트</div>
+        
+        <nav style="display: flex; flex-direction: column; gap: 5px; flex: 1;">
+            <a href="/" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">💬 Chat</a>
+            <a href="/rag" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📚 RAG Console</a>
+            <a href="/bulk" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: var(--accent-color); background: rgba(56, 189, 248, 0.1); font-weight: 500;">📤 Batch Upload</a>
+            <a href="/docs" target="_blank" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📘 API Docs</a>
+            
+            <div id="admin-panel" style="display:none; flex-direction: column; gap: 5px; margin-top: 15px;">
+                <div style="font-size: 0.75rem; color: #64748b; margin-left: 15px; margin-bottom: 5px; font-weight: 600;">ADMIN TOOLS</div>
+                <a href="/admin?tab=collection" id="nav-collection" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📚 Collection</a>
+                <a href="/admin?tab=domain" id="nav-domain" class="nav-link" style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;" onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">🌐 Domain</a>
+            </div>
+        </nav>
+
+        <div id="login-section" style="margin-top: 15px;">
+            <button onclick="location.href='/auth/login'" style="width:100%">로그인</button>
+        </div>
+
+        <div class="user-profile" id="user-info" style="display:none; margin-top: 15px;">
+            <div id="username">사용자명</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                <div id="role-badge" class="admin-badge">Admin</div>
+                <a href="/auth/logout" style="color: var(--accent-color); font-size: 0.75rem; text-decoration: none;">로그아웃</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <h1 style="margin-top: 0; margin-bottom: 20px;">Excel Batch Upload</h1>
+        
+        <div class="upload-section">
+            <h3 style="margin-top:0">Select Target & Upload</h3>
+            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label>Collection</label>
+                    <select id="bulk-collection"></select>
+                </div>
+                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label>Domain</label>
+                    <select id="bulk-domain"></select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Excel File (.xlsx)</label>
+                <input type="file" id="bulk-file" accept=".xlsx, .xls" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; border-radius: 4px; color: white;">
+                <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 5px;">* 엑셀 파일에는 반드시 <strong>Content</strong> 열(Column)이 있어야 합니다. <strong>Extended Content</strong> 열이 비어있으면 Content 값으로 자동 복사됩니다.</p>
+            </div>
+            
+            <button onclick="startUpload()" style="width: 100%; margin-top: 10px; border-radius: 4px; padding: 12px; font-size: 1rem;">Upload Excel</button>
+        </div>
+
+        <div class="upload-section" style="margin-top: 30px; border-color: #ef444433;">
+            <h3 style="margin-top:0; color: #ef4444;">Batch Delete</h3>
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px;">콜렉션, 도메인, 소스값을 기준으로 데이터를 일괄 삭제합니다.</p>
+            
+            <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label>Collection</label>
+                    <select id="delete-collection"></select>
+                </div>
+                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label>Domain</label>
+                    <select id="delete-domain"></select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Source Value (파일명 등)</label>
+                <input type="text" id="delete-source" placeholder="예: sample.xlsx" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; border-radius: 4px; color: white;">
+            </div>
+            
+            <button onclick="confirmDelete()" style="width: 100%; margin-top: 10px; border-radius: 4px; padding: 12px; font-size: 1rem; background: #ef4444; color: white;">Batch Delete</button>
+        </div>
+    </div>
+
+    <!-- Progress Modal Overlay -->
+    <div id="progress-overlay" class="progress-modal-overlay">
+        <div class="progress-modal">
+            <h2 style="margin-top: 0">Uploading...</h2>
+            <div style="font-size: 1.2rem; margin: 20px 0;">
+                <div>Total: <span id="prog-total">0</span></div>
+                <div style="color: #10b981;">Success: <span id="prog-success">0</span></div>
+                <div style="color: #ef4444;">Error: <span id="prog-error">0</span></div>
+            </div>
+            <div id="prog-status" style="margin-bottom: 20px; color: #94a3b8;">작업이 진행 중입니다. 화면을 조작하거나 닫지 마세요.</div>
+            
+            <button id="btn-close-prog" onclick="closeProgress()" style="display: none; background: #64748b; border-radius: 4px; margin-right: 10px;">닫기</button>
+            <button id="btn-download-error" style="display: none; background: #ef4444; border-radius: 4px;" onclick="downloadErrors()">에러 내역 다운로드</button>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js?v=5"></script>
+    <script src="/static/js/bulk.js?v=5"></script>
+</body>
+</html>

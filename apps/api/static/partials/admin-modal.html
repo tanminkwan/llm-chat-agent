@@ -1,0 +1,88 @@
+<!-- Admin Management Modal (admin.js에 의해 동적으로 로드됨) -->
+<div id="admin-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">Management</h2>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+
+        <div id="collection-manager" style="display:none">
+            <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 30px;">
+                <div>
+                    <h3 id="col-form-title">콜렉션 등록</h3>
+                    <div class="form-group">
+                        <label>콜렉션 ID (Qdrant Table 명 - 영문/숫자/-/_ 만 허용)</label>
+                        <input type="text" id="col-collection-name" placeholder="예: qna_docs">
+                    </div>
+                    <div class="form-group">
+                        <label>표시 이름</label>
+                        <input type="text" id="col-name" placeholder="예: 법률_데이터">
+                    </div>
+                    <div class="form-group">
+                        <label>설명</label>
+                        <textarea id="col-desc" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>스니펫 크기 제한 (Byte)</label>
+                        <input type="number" id="col-snippet" value="500">
+                    </div>
+                    <div class="form-group">
+                        <label>검색 방식</label>
+                        <select id="col-search">
+                            <option value="vector">Vector Distance (Semantic)</option>
+                            <option value="bm25">BM25 (Keyword)</option>
+                            <option value="hybrid">Hybrid (Keyword + Vector)</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button onclick="saveCollection()" id="col-save-btn" style="flex: 1">저장하기</button>
+                        <button onclick="resetColForm()" style="flex: 0.5; background: #64748b;">초기화</button>
+                    </div>
+                </div>
+                <div>
+                    <h3>등록된 콜렉션</h3>
+                    <div style="max-height: 450px; overflow-y: auto;">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>ID(Table)</th>
+                                    <th>이름</th>
+                                    <th>관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="collection-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="domain-manager" style="display:none">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div>
+                    <h3 id="dom-form-title">도메인 등록</h3>
+                    <input type="hidden" id="dom-id">
+                    <div class="form-group">
+                        <label>도메인명</label>
+                        <input type="text" id="dom-name" placeholder="예: 과학, 경제, IT">
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button onclick="saveDomain()" id="dom-save-btn" style="flex: 1">저장하기</button>
+                        <button onclick="resetDomForm()" style="flex: 0.5; background: #64748b;">초기화</button>
+                    </div>
+                </div>
+                <div>
+                    <h3>등록된 도메인</h3>
+                    <div style="max-height: 450px; overflow-y: auto;">
+                        <table class="admin-table">
+                            <thead>
+                                <tr><th>ID</th><th>이름</th><th>관리</th></tr>
+                            </thead>
+                            <tbody id="domain-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

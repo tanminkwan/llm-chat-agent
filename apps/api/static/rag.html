@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG 지식 관리 콘솔</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=5">
+    <style>
+        /* RAG 전용 추가 스타일 */
+        #main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .search-panel {
+            background: var(--sidebar-color);
+            padding: 25px;
+            border-radius: 16px;
+            border: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .search-item {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .search-item.query {
+            flex: 3;
+            min-width: 300px;
+        }
+
+        .search-item label {
+            display: block;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        textarea.query-input {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            border-radius: 8px;
+            padding: 10px;
+            resize: vertical;
+            min-height: 40px;
+            font-family: inherit;
+        }
+
+        .table-container {
+            background: var(--sidebar-color);
+            border-radius: 16px;
+            border: 1px solid #334155;
+            overflow-y: auto;
+            max-height: calc(100vh - 280px);
+        }
+
+        .rag-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .rag-table th {
+            background: rgba(255, 255, 255, 0.03);
+            text-align: left;
+            padding: 15px;
+            color: var(--accent-color);
+            font-size: 0.9rem;
+            border-bottom: 1px solid #334155;
+        }
+
+        .rag-table td {
+            padding: 15px;
+            border-bottom: 1px solid #334155;
+            font-size: 0.85rem;
+            vertical-align: top;
+        }
+
+        .text-truncate {
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+        }
+
+        .text-truncate:hover {
+            color: var(--accent-color);
+        }
+
+        .source-badge {
+            background: #334155;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        /* 액션 사이드바 */
+        #action-sidebar {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: 700px;
+            max-width: 90vw;
+            box-sizing: border-box;
+            height: 100vh;
+            background: var(--sidebar-color);
+            border-left: 1px solid #334155;
+            z-index: 1001;
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 30px;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+        }
+
+        #action-sidebar.active {
+            transform: translateX(0);
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(3px);
+            z-index: 1000;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .sidebar-header h2 {
+            margin: 0;
+            color: var(--accent-color);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-secondary {
+            background: #475569;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .nav-link {
+            color: #94a3b8;
+            text-decoration: none;
+            padding: 10px;
+            border-radius: 8px;
+            display: block;
+            margin-bottom: 5px;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent-color);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="sidebar">
+        <div class="logo" id="app-logo" style="margin-bottom: 30px;">AI 에이전트</div>
+
+        <nav style="display: flex; flex-direction: column; gap: 5px; flex: 1;">
+            <a href="/" class="nav-link"
+                style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;"
+                onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';"
+                onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">💬 Chat</a>
+            <a href="/rag" class="nav-link"
+                style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: var(--accent-color); background: rgba(56, 189, 248, 0.1); font-weight: 500;">📚
+                RAG Console</a>
+            <a href="/bulk" class="nav-link"
+                style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;"
+                onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';"
+                onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📤 Batch Upload</a>
+            <a href="/docs" target="_blank" class="nav-link"
+                style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;"
+                onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';"
+                onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📘 API Docs</a>
+
+            <div id="admin-panel" style="display:none; flex-direction: column; gap: 5px; margin-top: 15px;">
+                <div
+                    style="font-size: 0.75rem; color: #64748b; margin-left: 15px; margin-bottom: 5px; font-weight: 600;">
+                    ADMIN TOOLS</div>
+                <a href="/admin?tab=collection" class="nav-link"
+                    style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;"
+                    onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';"
+                    onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">📚 Collection</a>
+                <a href="/admin?tab=domain" class="nav-link"
+                    style="display: block; text-decoration: none; padding: 12px 15px; border-radius: 8px; color: #94a3b8; transition: 0.2s;"
+                    onmouseover="this.style.color='white'; this.style.background='rgba(255,255,255,0.05)';"
+                    onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';">🌐 Domain</a>
+            </div>
+        </nav>
+
+        <div id="login-section" style="margin-top: 15px;">
+            <button onclick="location.href='/auth/login'" style="width:100%">로그인</button>
+        </div>
+
+        <div class="user-profile" id="user-info" style="display:none; margin-top: 15px;">
+            <div id="username">사용자명</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                <div id="role-badge" class="admin-badge">Admin</div>
+                <a href="/auth/logout"
+                    style="color: var(--accent-color); font-size: 0.75rem; text-decoration: none;">로그아웃</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <header style="display: flex; justify-content: space-between; align-items: center;">
+            <h1>RAG Retrieval Console</h1>
+            <button onclick="openSidebar('create')" style="border-radius: 4px; padding: 8px 16px;">+ 신규 지식 등록</button>
+        </header>
+
+        <!-- 검색 패널 -->
+        <div class="search-panel">
+            <div class="search-row">
+                <div class="search-item">
+                    <label for="search-collection">Collection</label>
+                    <select id="search-collection">
+                        <option value="all">ALL</option>
+                    </select>
+                </div>
+                <div class="search-item">
+                    <label for="search-domain">Domain</label>
+                    <select id="search-domain">
+                        <option value="all">ALL</option>
+                    </select>
+                </div>
+                <div class="search-item">
+                    <label for="search-algorithm">Algorithm</label>
+                    <select id="search-algorithm">
+                        <option value="vector">Vector (Semantic)</option>
+                        <option value="text_matching">Text Matching</option>
+                    </select>
+                </div>
+                <button onclick="performSearch()"
+                    style="height: auto; padding: 10px 40px; border-radius: 4px; align-self: flex-end; margin-bottom: 0px;">검색</button>
+            </div>
+            <div class="search-row">
+                <div class="search-item query" style="flex: 1; margin-right: 0;">
+                    <label for="search-query">Query Vector Source</label>
+                    <textarea id="search-query" class="query-input" rows="3" style="width: 100%;"
+                        placeholder="Enter query text for embedding..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- 데이터 테이블 -->
+        <div class="table-container">
+            <table class="rag-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px; text-align: center;">Rank</th>
+                        <th>Collection</th>
+                        <th>Domain</th>
+                        <th>Content (Embedded)</th>
+                        <th>Extended Payload</th>
+                        <th>Source</th>
+                        <th>Score</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="rag-data-body">
+                    <!-- 데이터가 여기에 동적으로 삽입됨 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 액션 사이드바 (등록/수정) -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+    <div id="action-sidebar">
+        <div class="sidebar-header">
+            <h2 id="sidebar-title">신규 지식 등록</h2>
+            <span class="close" onclick="closeSidebar()">&times;</span>
+        </div>
+
+        <form id="knowledge-form" onsubmit="saveKnowledge(event)">
+            <input type="hidden" id="form-mode" value="create">
+            <input type="hidden" id="edit-point-id">
+
+            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label for="form-collection">Collection 선택 *</label>
+                    <select id="form-collection" required></select>
+                    <div id="form-collection-label"
+                        style="display:none; padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid #334155; border-radius: 8px; color: #cbd5e1; font-weight: 500;">
+                    </div>
+                </div>
+
+                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label for="form-domain">Domain 선택 *</label>
+                    <select id="form-domain" required></select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="form-source">출처 (파일명 또는 참조명) *</label>
+                <input type="text" id="form-source" placeholder="예: 운영가이드 v1.0" required>
+            </div>
+
+            <div class="form-group">
+                <label for="form-content">임베딩용 문구 (Content) *</label>
+                <textarea id="form-content" rows="12" placeholder="임베딩 모델의 입력이 될 핵심 문장을 입력하세요." required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="form-extended">실제 노출 내용 (Extended Content) *</label>
+                <textarea id="form-extended" rows="12" placeholder="검색 결과로 노출될 전체 내용을 입력하세요." required></textarea>
+            </div>
+
+            <div class="btn-group">
+                <button type="submit" id="btn-save-knowledge" style="flex: 1;">저장하기</button>
+                <button type="button" id="btn-cancel-knowledge" class="btn-secondary"
+                    onclick="closeSidebar()">취소</button>
+            </div>
+        </form>
+    </div>
+
+    <script src="/static/js/rag.js?v=5"></script>
+    <script src="/static/js/app.js?v=5"></script>
+    <script>
+        // 초기 로드 (RAG 전용 로직만 수행, 유저 인증 및 UI 설정은 app.js가 담당)
+        window.addEventListener('DOMContentLoaded', () => {
+            loadDropdowns();
+            // 강제 조회 제거
+            const tbody = document.getElementById('rag-data-body');
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 40px; color: #94a3b8;">조회 조건을 선택하고 검색 버튼을 눌러주세요.</td></tr>';
+        });
+    </script>
+</body>
+
+</html>
