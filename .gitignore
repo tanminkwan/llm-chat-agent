@@ -21,3 +21,5 @@ certs/
 # Local data
 data/
 *.db
+qdrant_data/
+postgres_data/
