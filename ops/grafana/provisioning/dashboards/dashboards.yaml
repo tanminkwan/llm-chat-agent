@@ -1,12 +1,22 @@
 apiVersion: 1
 
 providers:
-  - name: 'llm-chat-agent'
-    folder: 'LLM Agent'
+  - name: 'llm-admin'
+    folder: 'LLM Admin'
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30
     allowUiUpdates: true
     options:
-      path: /var/lib/grafana/dashboards
+      path: /var/lib/grafana/dashboards/admin
+      foldersFromFilesStructure: false
+
+  - name: 'llm-user'
+    folder: 'LLM User'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/user
       foldersFromFilesStructure: false

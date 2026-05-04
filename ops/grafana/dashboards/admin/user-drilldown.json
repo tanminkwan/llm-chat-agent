@@ -9,11 +9,30 @@
   "panels": [
     {
       "id": 1,
-      "title": "사용자별 요청 수 Top 20 (선택 기간)",
+      "title": "사용자별 요청 수 Top 20 (선택 기간) — user_id 셀 클릭 시 아래 두 패널 자동 필터",
       "type": "table",
       "datasource": { "type": "loki", "uid": "loki" },
       "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" } }, "overrides": [] },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "user_id" },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "이 사용자로 LLM_LOG 필터",
+                    "url": "/d/llm-user-drilldown?var-user_id=${__value.raw}&${__url_time_range}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
       "options": { "showHeader": true, "cellHeight": "sm" },
       "targets": [
         {
@@ -39,7 +58,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{container=\"llm-agent\"} | json | user_id = `$user_id`",
+          "expr": "{container=\"llm-agent\"} | user_id = `$user_id`",
           "datasource": { "type": "loki", "uid": "loki" }
         }
       ]
@@ -54,7 +73,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{container=\"llm-agent\"} | json | request_id = `$request_id`",
+          "expr": "{container=\"llm-agent\"} | request_id = `$request_id`",
           "datasource": { "type": "loki", "uid": "loki" }
         }
       ]

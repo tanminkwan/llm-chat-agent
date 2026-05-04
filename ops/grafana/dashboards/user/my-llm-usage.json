@@ -1,0 +1,108 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "내 요청 수 추이 (모델 유형별, 1분 bin)",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (model_type) (count_over_time({container=\"llm-agent\", type=\"request\"} | json | user_id = `${__user.login}` [1m]))",
+          "legendFormat": "{{model_type}}",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "내 응답 지연 p50/p95 (ms)",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "ms", "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "p50",
+          "expr": "quantile_over_time(0.5, {container=\"llm-agent\", type=\"response\"} | json | user_id = `${__user.login}` | unwrap latency_ms [5m])",
+          "legendFormat": "p50",
+          "datasource": { "type": "loki", "uid": "loki" }
+        },
+        {
+          "refId": "p95",
+          "expr": "quantile_over_time(0.95, {container=\"llm-agent\", type=\"response\"} | json | user_id = `${__user.login}` | unwrap latency_ms [5m])",
+          "legendFormat": "p95",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "내 LLM_LOG (전체)",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 8 },
+      "options": { "showTime": true, "wrapLogMessage": true, "enableLogDetails": true, "dedupStrategy": "none", "sortOrder": "Descending" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{container=\"llm-agent\"} | user_id = `${__user.login}`",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "내 단일 trace (request_id)",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 22 },
+      "options": { "showTime": true, "wrapLogMessage": true, "enableLogDetails": true, "dedupStrategy": "none", "sortOrder": "Ascending" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{container=\"llm-agent\"} | user_id = `${__user.login}` | request_id = `$request_id`",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["llm", "phase06", "user"],
+  "templating": {
+    "list": [
+      {
+        "name": "request_id",
+        "type": "textbox",
+        "label": "Request ID (8자)",
+        "current": { "value": "", "text": "" },
+        "query": "",
+        "hide": 0
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "내 LLM 사용 현황",
+  "uid": "llm-my-usage",
+  "version": 1,
+  "weekStart": ""
+}

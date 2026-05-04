@@ -44,7 +44,7 @@ scrape_configs:
           action: drop
           drop_counter_reason: not_llm_log
 
-      # 4) [LLM_LOG] 라인의 JSON 파싱 + 라벨/메타데이터 부착
+      # 4) [LLM_LOG] 라인의 JSON 본문 추출
       - regex:
           expression: '\[LLM_LOG\]\s+(?P<llm_json>\{.*\})'
       - json:
@@ -57,6 +57,10 @@ scrape_configs:
             user_id: user_id
             model: model
             search_method: search_method
+      # 5) 저장될 라인 본문을 LLM_LOG JSON 으로 교체
+      #    (Python logging prefix 제거 → Grafana 패널의 `| json` 이 그대로 동작)
+      - output:
+          source: llm_json
       # 저카디널리티 라벨 (Loki 인덱스)
       - labels:
           type:
