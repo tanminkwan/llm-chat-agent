@@ -9,6 +9,7 @@ services:
       - ./certs:/etc/nginx/certs:ro
     depends_on:
       - llm-agent
+      - grafana
     extra_hosts:
       - "idp.mwm.local:host-gateway"
       - "llm-agent.mwm.local:host-gateway"
@@ -51,6 +52,72 @@ services:
       - "5432:5432"
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  # --- Phase 06: Observability stack ---
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml -config.expand-env=true
+    environment:
+      - LOKI_RETENTION_PERIOD=${LOKI_RETENTION_PERIOD:-720h}
+    volumes:
+      - ./ops/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - ./loki_data:/loki
+    restart: always
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    command: -config.file=/etc/promtail/config.yaml
+    volumes:
+      - ./ops/promtail/promtail-config.yaml:/etc/promtail/config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    restart: always
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    env_file:
+      - .env
+    environment:
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-https://localhost:21443/grafana}
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      # --- Phase 06: 임시 admin 로그인 ---
+      GF_AUTH_BASIC_ENABLED: "true"
+      GF_SECURITY_ADMIN_USER: "admin"
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-changeme}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_UNIFIED_ALERTING_ENABLED: "false"
+      GF_ALERTING_ENABLED: "false"
+      # --- Phase 06.1 (OIDC SSO): 클라이언트 등록 후 아래 블록 활성화 + BASIC 비활성화 ---
+      # GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
+      # GF_AUTH_GENERIC_OAUTH_NAME: "mwm-idp"
+      # GF_AUTH_GENERIC_OAUTH_CLIENT_ID: ${GRAFANA_OIDC_CLIENT_ID}
+      # GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: ${GRAFANA_OIDC_CLIENT_SECRET}
+      # GF_AUTH_GENERIC_OAUTH_AUTH_URL: ${GRAFANA_OIDC_AUTH_URL}
+      # GF_AUTH_GENERIC_OAUTH_TOKEN_URL: ${GRAFANA_OIDC_TOKEN_URL}
+      # GF_AUTH_GENERIC_OAUTH_API_URL: ${GRAFANA_OIDC_API_URL}
+      # GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email groups"
+      # GF_AUTH_GENERIC_OAUTH_ALLOWED_GROUPS: ${GRAFANA_ALLOWED_GROUPS:-Admin,User}
+      # GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(groups[*], 'Admin') && 'Admin' || contains(groups[*], 'User') && 'Viewer' || 'None'"
+      # GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT: "true"
+      # GF_AUTH_BASIC_ENABLED: "false"
+      # GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./ops/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./grafana_data:/var/lib/grafana
+    extra_hosts:
+      - "idp.mwm.local:host-gateway"
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - loki
     restart: always
 
 networks:

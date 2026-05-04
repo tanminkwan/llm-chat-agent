@@ -23,3 +23,5 @@ data/
 *.db
 qdrant_data/
 postgres_data/
+loki_data/
+grafana_data/

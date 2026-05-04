@@ -17,6 +17,7 @@ import uuid
 from fastapi import BackgroundTasks, File, UploadFile, Form
 import logging
 import sys
+import time
 
 from libs.core.settings import settings
 from libs.core.llm import LLMGateway
@@ -32,6 +33,7 @@ logger = logging.getLogger("llm-chat-agent")
 from libs.core.memory import memory_manager
 from libs.core.database import get_db, engine, Base, AsyncSessionLocal
 from libs.core.service import RAGService, PromptService
+from libs.core.logging_helpers import emit_llm_log, extract_usage, rag_score_summary
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -323,18 +325,18 @@ async def search_rag(
     """지정된 콜렉션에서 쿼리와 가장 유사한 지식 조각들을 검색하여 점수 순으로 반환합니다."""
     request_id = str(uuid.uuid4())[:8]
     user_id = user.sub
+    started_at = time.perf_counter()
 
     # [LLM_LOG] RAG 검색 요청 로깅
-    search_request_log = {
+    emit_llm_log("debug", {
         "request_id": request_id,
         "user_id": user_id,
         "type": "rag_search_request",
         "collection_id": request.collection_id,
         "domain_id": request.domain_id,
         "query": request.query,
-        "search_method": request.search_method
-    }
-    logger.debug(f"[LLM_LOG] {json.dumps(search_request_log, ensure_ascii=False)}")
+        "search_method": request.search_method,
+    })
 
     results = await service.search_rag(
         collection_id=request.collection_id,
@@ -344,12 +346,17 @@ async def search_rag(
         limit=request.limit
     )
 
-    # [LLM_LOG] RAG 검색 결과 로깅 (메타데이터만)
-    search_response_log = {
+    # [LLM_LOG] RAG 검색 결과 로깅 (메타데이터만 + score 요약 + latency)
+    score_summary = rag_score_summary(results)
+    emit_llm_log("debug", {
         "request_id": request_id,
         "user_id": user_id,
         "type": "rag_search_response",
+        "search_method": request.search_method,
         "results_count": len(results),
+        "top_score": score_summary["top_score"],
+        "min_score": score_summary["min_score"],
+        "latency_ms": int((time.perf_counter() - started_at) * 1000),
         "results_metadata": [
             {
                 "id": r.get("id"),
@@ -360,8 +367,7 @@ async def search_rag(
                 "created_at": r.get("created_at")
             } for r in results
         ]
-    }
-    logger.debug(f"[LLM_LOG] {json.dumps(search_response_log, ensure_ascii=False)}")
+    })
 
     return results
 
@@ -553,53 +559,60 @@ async def chat(
     
     async def event_generator():
         full_response = ""
+        final_chunk = None
         request_id = str(uuid.uuid4())[:8] # 고유 요청 ID (Trace ID)
         user_id = user.sub
+        started_at = time.perf_counter()
         system_prompt = request.system_prompt or "당신은 AI 어시스턴트입니다."
         messages = [SystemMessage(content=system_prompt)] + history.messages + [HumanMessage(content=request.message)]
-        
+
         # [LLM_LOG] JSON 구조화 로깅 (요청)
-        request_log = {
+        emit_llm_log("debug", {
             "request_id": request_id,
             "user_id": user_id,
             "type": "request",
             "thread_id": actual_thread_id,
             "model_type": request.model_type,
-            "messages": [{"role": msg.type, "content": msg.content} for msg in messages]
-        }
-        logger.debug(f"[LLM_LOG] {json.dumps(request_log, ensure_ascii=False)}")
+            "messages": [{"role": msg.type, "content": msg.content} for msg in messages],
+        })
 
         async def stream_with_logging():
-            nonlocal full_response
+            nonlocal full_response, final_chunk
             try:
                 async for chunk in llm.astream(messages):
+                    final_chunk = chunk
                     content = chunk.content
                     if content:
                         full_response += content
                         yield f"data: {json.dumps({'content': content}, ensure_ascii=False)}\n\n"
             except Exception as e:
-                error_log = {
+                emit_llm_log("error", {
                     "request_id": request_id,
                     "thread_id": actual_thread_id,
                     "user_id": user_id,
                     "type": "error",
-                    "error": str(e)
-                }
-                logger.error(f"[LLM_LOG] {json.dumps(error_log, ensure_ascii=False)}")
+                    "error": str(e),
+                    "latency_ms": int((time.perf_counter() - started_at) * 1000),
+                })
                 yield f"data: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"
 
         async for event in stream_with_logging():
             yield event
-        
+
+        usage = extract_usage(final_chunk)
         # [LLM_LOG] JSON 구조화 로깅 (응답)
-        response_log = {
+        emit_llm_log("debug", {
             "request_id": request_id,
             "thread_id": actual_thread_id,
             "user_id": user_id,
             "type": "response",
-            "full_response": full_response
-        }
-        logger.debug(f"[LLM_LOG] {json.dumps(response_log, ensure_ascii=False)}")
+            "model_type": request.model_type,
+            "model": usage["model"],
+            "input_tokens": usage["input_tokens"],
+            "output_tokens": usage["output_tokens"],
+            "latency_ms": int((time.perf_counter() - started_at) * 1000),
+            "full_response": full_response,
+        })
 
         history.add_user_message(request.message)
         history.add_ai_message(full_response)
