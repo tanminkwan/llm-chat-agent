@@ -9,12 +9,16 @@ positions:
   filename: /tmp/positions.yaml
 
 scrape_configs:
-  - job_name: docker
+  - job_name: llm-agent
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
         refresh_interval: 5s
     relabel_configs:
-      # Docker 컨테이너 이름 → 라벨 container
+      # 1) llm-agent 컨테이너만 유지 — 다른 컨테이너는 docker SD 단계에서 제외
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/llm-agent'
+        action: keep
+      # 2) 라벨 정리
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)'
         target_label: container
@@ -22,7 +26,7 @@ scrape_configs:
         target_label: stream
 
     pipeline_stages:
-      # Docker JSON-file driver: {"log":"...","stream":"stdout","time":"..."}
+      # Docker JSON-file driver 의 wrapping 제거
       - json:
           expressions:
             output: log
@@ -34,30 +38,33 @@ scrape_configs:
       - output:
           source: output
 
-      # llm-agent 컨테이너에 한해 [LLM_LOG] JSON 본문 추출 + 라벨링
+      # 3) [LLM_LOG] 가 없는 라인은 적재하지 않는다 (uvicorn access log 등 드롭)
       - match:
-          selector: '{container="llm-agent"}'
-          stages:
-            - regex:
-                expression: '\[LLM_LOG\]\s+(?P<llm_json>\{.*\})'
-            - json:
-                source: llm_json
-                expressions:
-                  type: type
-                  model_type: model_type
-                  request_id: request_id
-                  thread_id: thread_id
-                  user_id: user_id
-                  model: model
-                  search_method: search_method
-            # 저카디널리티 라벨 (Loki 인덱스)
-            - labels:
-                type:
-                model_type:
-                search_method:
-            # 고카디널리티 식별자는 structured metadata 로 (Loki 3.x)
-            - structured_metadata:
-                request_id:
-                thread_id:
-                user_id:
-                model:
+          selector: '{container="llm-agent"} !~ "\\[LLM_LOG\\]"'
+          action: drop
+          drop_counter_reason: not_llm_log
+
+      # 4) [LLM_LOG] 라인의 JSON 파싱 + 라벨/메타데이터 부착
+      - regex:
+          expression: '\[LLM_LOG\]\s+(?P<llm_json>\{.*\})'
+      - json:
+          source: llm_json
+          expressions:
+            type: type
+            model_type: model_type
+            request_id: request_id
+            thread_id: thread_id
+            user_id: user_id
+            model: model
+            search_method: search_method
+      # 저카디널리티 라벨 (Loki 인덱스)
+      - labels:
+          type:
+          model_type:
+          search_method:
+      # 고카디널리티 식별자는 structured metadata 로 (Loki 3.x)
+      - structured_metadata:
+          request_id:
+          thread_id:
+          user_id:
+          model:
