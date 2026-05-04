@@ -31,7 +31,7 @@ logger = logging.getLogger("llm-chat-agent")
 
 from libs.core.memory import memory_manager
 from libs.core.database import get_db, engine, Base, AsyncSessionLocal
-from libs.core.service import RAGService
+from libs.core.service import RAGService, PromptService
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -88,7 +88,8 @@ async def startup():
 from .schemas import (
     CollectionCreate, CollectionRead, DomainCreate, DomainRead,
     KnowledgeCreate, SearchResult, SearchRequest, UserInfo, ConfigResponse,
-    MessageResponse, TaskStatusResponse, DeleteCountResponse, ChatRequest
+    MessageResponse, TaskStatusResponse, DeleteCountResponse, ChatRequest,
+    PromptCreate, PromptUpdate, PromptRead
 )
 # --- 인증 관련 엔드포인트 ---
 
@@ -165,6 +166,15 @@ async def rag_console(request: Request):
 async def admin_console(request: Request):
     """동일한 SPA 셸을 반환. Admin 그룹만 접근 가능."""
     redirect = _require_user(request, admin_only=True)
+    if redirect:
+        return redirect
+    return FileResponse(SPA_INDEX_PATH)
+
+
+@app.get("/prompts", tags=["UI"], summary="SPA - Prompt 관리 화면")
+async def prompts_console(request: Request):
+    """동일한 SPA 셸을 반환. 클라이언트 라우터가 Prompt 뷰를 활성화한다."""
+    redirect = _require_user(request)
     if redirect:
         return redirect
     return FileResponse(SPA_INDEX_PATH)
@@ -406,6 +416,120 @@ async def bulk_delete_knowledge(
         return await service.bulk_delete_knowledge_points(collection, domain_id, source)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+# --- Prompt 관리 엔드포인트 (User 권한) ---
+
+def get_prompt_service(db: AsyncSession = Depends(get_db)) -> PromptService:
+    return PromptService(db)
+
+
+def _to_prompt_read(prompt, current_user_id: str) -> dict:
+    return {
+        "id": prompt.id,
+        "user_id": prompt.user_id,
+        "username": prompt.username,
+        "title": prompt.title,
+        "content": prompt.content,
+        "is_public": prompt.is_public,
+        "is_owner": prompt.user_id == current_user_id,
+        "created_at": prompt.created_at,
+        "updated_at": prompt.updated_at,
+    }
+
+
+@app.get("/api/prompts", tags=["Prompt"], response_model=List[PromptRead], summary="Prompt 목록 조회")
+async def list_prompts(
+    include_others: bool = Query(False, description="True 이면 타 user 가 공유한 Prompt 까지 포함"),
+    title: Optional[str] = Query(None, description="제목 부분 일치 검색어"),
+    service: PromptService = Depends(get_prompt_service),
+    user: UserInfo = Depends(get_current_user),
+):
+    """본인 소유 Prompt 와 (옵션) 타 user 가 공개한 Prompt 목록을 조회합니다."""
+    if not any(role in user.groups for role in ["Admin", "User"]):
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
+    prompts = await service.list_prompts(
+        user_id=user.sub,
+        include_others=include_others,
+        title_keyword=(title.strip() if title else None) or None,
+    )
+    return [_to_prompt_read(p, user.sub) for p in prompts]
+
+
+@app.get("/api/prompts/{prompt_id}", tags=["Prompt"], response_model=PromptRead, summary="Prompt 단건 조회")
+async def get_prompt(
+    prompt_id: int = Path(..., description="조회할 Prompt 고유 번호"),
+    service: PromptService = Depends(get_prompt_service),
+    user: UserInfo = Depends(get_current_user),
+):
+    if not any(role in user.groups for role in ["Admin", "User"]):
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
+    try:
+        prompt = await service.get_prompt(prompt_id, user.sub)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    return _to_prompt_read(prompt, user.sub)
+
+
+@app.post("/api/prompts", tags=["Prompt"], response_model=PromptRead, summary="Prompt 신규 등록")
+async def create_prompt(
+    data: PromptCreate = Body(...),
+    service: PromptService = Depends(get_prompt_service),
+    user: UserInfo = Depends(get_current_user),
+):
+    if not any(role in user.groups for role in ["Admin", "User"]):
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
+    prompt = await service.create_prompt(
+        user_id=user.sub,
+        username=user.preferred_username,
+        title=data.title,
+        content=data.content,
+        is_public=data.is_public,
+    )
+    return _to_prompt_read(prompt, user.sub)
+
+
+@app.put("/api/prompts/{prompt_id}", tags=["Prompt"], response_model=PromptRead, summary="Prompt 수정")
+async def update_prompt(
+    prompt_id: int = Path(..., description="수정할 Prompt 고유 번호"),
+    data: PromptUpdate = Body(...),
+    service: PromptService = Depends(get_prompt_service),
+    user: UserInfo = Depends(get_current_user),
+):
+    if not any(role in user.groups for role in ["Admin", "User"]):
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
+    try:
+        prompt = await service.update_prompt(
+            prompt_id=prompt_id,
+            user_id=user.sub,
+            title=data.title,
+            content=data.content,
+            is_public=data.is_public,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    return _to_prompt_read(prompt, user.sub)
+
+
+@app.delete("/api/prompts/{prompt_id}", tags=["Prompt"], response_model=MessageResponse, summary="Prompt 삭제")
+async def delete_prompt(
+    prompt_id: int = Path(..., description="삭제할 Prompt 고유 번호"),
+    service: PromptService = Depends(get_prompt_service),
+    user: UserInfo = Depends(get_current_user),
+):
+    if not any(role in user.groups for role in ["Admin", "User"]):
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
+    try:
+        await service.delete_prompt(prompt_id, user.sub)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    return {"message": "Prompt deleted successfully"}
+
 
 # --- 채팅 엔드포인트 ---
 

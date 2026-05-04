@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
+from datetime import datetime
 
 # --- Collection Schemas ---
 
@@ -86,6 +87,30 @@ class TaskStatusResponse(BaseModel):
 
 class DeleteCountResponse(BaseModel):
     count: int = Field(..., description="삭제 대상 데이터 개수")
+
+# --- Prompt Schemas ---
+
+class PromptBase(BaseModel):
+    title: str = Field(..., max_length=200, description="프롬프트 제목")
+    content: str = Field(..., description="시스템 프롬프트 본문")
+    is_public: bool = Field(True, description="타 user에게 공개 여부 (기본 공개)")
+
+class PromptCreate(PromptBase):
+    pass
+
+class PromptUpdate(PromptBase):
+    pass
+
+class PromptRead(PromptBase):
+    id: int = Field(..., description="프롬프트 고유 번호")
+    user_id: str = Field(..., description="소유자 ID (OIDC sub)")
+    username: Optional[str] = Field(None, description="소유자 표시 이름")
+    is_owner: bool = Field(False, description="현재 사용자가 소유자인지 여부")
+    created_at: datetime = Field(..., description="생성일시")
+    updated_at: datetime = Field(..., description="변경일시")
+
+    class Config:
+        from_attributes = True
 
 class ChatRequest(BaseModel):
     message: str = Field(..., description="사용자 메시지")

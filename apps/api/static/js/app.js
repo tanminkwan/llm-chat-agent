@@ -6,8 +6,8 @@
  *  - 뷰 전환 시 DOM은 유지하고 display 만 토글하므로 작업 상태가 보존됨
  */
 
-const VIEW_IDS = ['chat', 'rag', 'bulk', 'admin'];
-const viewInitialized = { chat: false, rag: false, bulk: false, admin: false };
+const VIEW_IDS = ['chat', 'rag', 'prompts', 'bulk', 'admin'];
+const viewInitialized = { chat: false, rag: false, prompts: false, bulk: false, admin: false };
 
 window.addEventListener('DOMContentLoaded', () => {
     checkLogin();
@@ -28,6 +28,7 @@ function parseLocation() {
     const path = window.location.pathname;
     let view = 'chat';
     if (path.startsWith('/rag')) view = 'rag';
+    else if (path.startsWith('/prompts')) view = 'prompts';
     else if (path.startsWith('/bulk')) view = 'bulk';
     else if (path.startsWith('/admin')) view = 'admin';
 
@@ -102,6 +103,13 @@ function initView(view, tab) {
         if (!viewInitialized.rag) {
             if (typeof initRag === 'function') initRag();
             viewInitialized.rag = true;
+        }
+    } else if (view === 'prompts') {
+        if (!viewInitialized.prompts) {
+            if (typeof initPrompts === 'function') initPrompts();
+            viewInitialized.prompts = true;
+        } else {
+            if (typeof searchPrompts === 'function') searchPrompts();
         }
     } else if (view === 'bulk') {
         if (!viewInitialized.bulk) {

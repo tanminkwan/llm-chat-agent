@@ -107,6 +107,14 @@ body {
     gap: 30px;
 }
 
+/* Prompt 뷰 */
+#view-prompts {
+    flex-direction: column;
+    padding: 30px;
+    overflow-y: auto;
+    gap: 30px;
+}
+
 /* Bulk 뷰 */
 #view-bulk {
     flex-direction: column;
@@ -472,8 +480,9 @@ textarea.query-input {
     font-size: 0.75rem;
 }
 
-/* 액션 사이드바 (RAG 등록/수정) */
-#action-sidebar {
+/* 액션 사이드바 (RAG / Prompt 등록·수정) */
+#action-sidebar,
+.action-sidebar-panel {
     position: fixed;
     right: 0;
     top: 0;
@@ -491,7 +500,8 @@ textarea.query-input {
     overflow-y: auto;
 }
 
-#action-sidebar.active {
+#action-sidebar.active,
+.action-sidebar-panel.active {
     transform: translateX(0);
 }
 

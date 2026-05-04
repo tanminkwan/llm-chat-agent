@@ -2,8 +2,8 @@ import uuid
 import datetime
 from typing import List, Optional, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from libs.core.repository import CollectionRepository, DomainRepository
-from libs.core.models import Collection, Domain
+from libs.core.repository import CollectionRepository, DomainRepository, PromptRepository
+from libs.core.models import Collection, Domain, Prompt
 from libs.core.settings import settings
 from libs.core.llm import LLMGateway
 from qdrant_client import QdrantClient
@@ -292,3 +292,74 @@ class RAGService:
             points_selector=qmodels.FilterSelector(filter=filter_obj)
         )
         return {"status": "success"}
+
+
+class PromptService:
+    """개인 시스템 프롬프트 CRUD 서비스"""
+
+    def __init__(self, db: AsyncSession):
+        self.repo = PromptRepository(db)
+
+    async def list_prompts(
+        self,
+        user_id: str,
+        include_others: bool = False,
+        title_keyword: Optional[str] = None,
+    ) -> List[Prompt]:
+        return await self.repo.search(
+            user_id=user_id,
+            include_others=include_others,
+            title_keyword=title_keyword,
+        )
+
+    async def get_prompt(self, prompt_id: int, user_id: str) -> Prompt:
+        prompt = await self.repo.get_by_id(prompt_id)
+        if not prompt:
+            raise ValueError("Prompt not found")
+        if prompt.user_id != user_id and not prompt.is_public:
+            raise PermissionError("조회 권한이 없습니다.")
+        return prompt
+
+    async def create_prompt(
+        self,
+        user_id: str,
+        username: Optional[str],
+        title: str,
+        content: str,
+        is_public: bool = True,
+    ) -> Prompt:
+        return await self.repo.create(
+            user_id=user_id,
+            username=username,
+            title=title,
+            content=content,
+            is_public=is_public,
+        )
+
+    async def update_prompt(
+        self,
+        prompt_id: int,
+        user_id: str,
+        title: str,
+        content: str,
+        is_public: bool,
+    ) -> Prompt:
+        prompt = await self.repo.get_by_id(prompt_id)
+        if not prompt:
+            raise ValueError("Prompt not found")
+        if prompt.user_id != user_id:
+            raise PermissionError("수정 권한이 없습니다.")
+        return await self.repo.update(
+            prompt,
+            title=title,
+            content=content,
+            is_public=is_public,
+        )
+
+    async def delete_prompt(self, prompt_id: int, user_id: str):
+        prompt = await self.repo.get_by_id(prompt_id)
+        if not prompt:
+            raise ValueError("Prompt not found")
+        if prompt.user_id != user_id:
+            raise PermissionError("삭제 권한이 없습니다.")
+        await self.repo.delete(prompt)
