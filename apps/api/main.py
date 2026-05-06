@@ -338,13 +338,26 @@ async def search_rag(
         "search_method": request.search_method,
     })
 
-    results = await service.search_rag(
-        collection_id=request.collection_id,
-        domain_id=request.domain_id,
-        query=request.query,
-        search_method=request.search_method,
-        limit=request.limit
-    )
+    try:
+        results = await service.search_rag(
+            collection_id=request.collection_id,
+            domain_id=request.domain_id,
+            query=request.query,
+            search_method=request.search_method,
+            limit=request.limit
+        )
+    except Exception as e:
+        emit_llm_log("error", {
+            "request_id": request_id,
+            "user_id": user_id,
+            "type": "rag_search_error",
+            "search_method": request.search_method,
+            "collection_id": request.collection_id,
+            "domain_id": request.domain_id,
+            "error": str(e),
+            "latency_ms": int((time.perf_counter() - started_at) * 1000),
+        })
+        raise
 
     # [LLM_LOG] RAG 검색 결과 로깅 (메타데이터만 + score 요약 + latency)
     score_summary = rag_score_summary(results)

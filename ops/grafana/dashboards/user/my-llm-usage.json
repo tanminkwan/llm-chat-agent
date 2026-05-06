@@ -62,7 +62,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{container=\"llm-agent\"} | user_id = `${__user.login}`",
+          "expr": "{container=\"llm-agent\"} | json | user_id = `${__user.login}`",
           "datasource": { "type": "loki", "uid": "loki" }
         }
       ]
@@ -77,7 +77,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{container=\"llm-agent\"} | user_id = `${__user.login}` | request_id = `$request_id`",
+          "expr": "{container=\"llm-agent\"} | json | user_id = `${__user.login}` | request_id = `$request_id`",
           "datasource": { "type": "loki", "uid": "loki" }
         }
       ]

@@ -14,21 +14,21 @@
       "datasource": { "type": "loki", "uid": "loki" },
       "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
       "fieldConfig": {
-        "defaults": { "color": { "mode": "thresholds" } },
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "links": [
+            {
+              "title": "이 사용자로 LLM_LOG 필터",
+              "url": "/d/llm-user-drilldown?var-user_id=${__data.fields.user_id}&${__url_time_range}",
+              "targetBlank": false
+            }
+          ]
+        },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "user_id" },
+            "matcher": { "id": "byName", "options": "마지막 활동" },
             "properties": [
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "이 사용자로 LLM_LOG 필터",
-                    "url": "/d/llm-user-drilldown?var-user_id=${__value.raw}&${__url_time_range}",
-                    "targetBlank": false
-                  }
-                ]
-              }
+              { "id": "unit", "value": "dateTimeAsIso" }
             ]
           }
         ]
@@ -37,15 +37,51 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(20, sum by (user_id) (count_over_time({container=\"llm-agent\", type=\"request\"} | json [$__range])))",
-          "legendFormat": "{{user_id}}",
+          "expr": "sum by (user_id) (count_over_time({container=\"llm-agent\", type=~\"request|rag_search_request\"} | json [$__interval]))",
           "datasource": { "type": "loki", "uid": "loki" },
-          "instant": true,
-          "queryType": "instant"
+          "queryType": "range"
         }
       ],
       "transformations": [
-        { "id": "labelsToFields", "options": {} }
+        { "id": "labelsToFields", "options": {} },
+        {
+          "id": "groupBy",
+          "options": {
+            "fields": {
+              "user_id": { "operation": "groupby", "aggregations": [] },
+              "Time": { "operation": "aggregate", "aggregations": ["max"] },
+              "Value": { "operation": "aggregate", "aggregations": ["sum"] }
+            }
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              { "fieldName": "user_id", "config": { "id": "isNotNull", "options": {} } }
+            ],
+            "type": "include",
+            "match": "all"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": { "user_id": 0, "Value (sum)": 1, "Time (max)": 2 },
+            "renameByName": {
+              "Value (sum)": "Value",
+              "Time (max)": "마지막 활동"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [{ "field": "Value", "desc": true }]
+          }
+        }
       ]
     },
     {
@@ -58,7 +94,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{container=\"llm-agent\"} | user_id = `$user_id`",
+          "expr": "{container=\"llm-agent\"} | json | user_id = `$user_id`",
           "datasource": { "type": "loki", "uid": "loki" }
         }
       ]
@@ -73,7 +109,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{container=\"llm-agent\"} | request_id = `$request_id`",
+          "expr": "{container=\"llm-agent\"} | json | request_id = `$request_id`",
           "datasource": { "type": "loki", "uid": "loki" }
         }
       ]

@@ -7,6 +7,8 @@ Dockerfile
 docker-compose.yml
 qdrant_data/
 postgres_data/
+grafana_data/
+loki_data/
 tests/
 docs/
 README.md
