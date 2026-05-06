@@ -122,6 +122,7 @@ services:
       GF_AUTH_SIGNOUT_REDIRECT_URL: ${GRAFANA_OIDC_LOGOUT_URL}
     volumes:
       - ./ops/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./ops/grafana/home.json:/etc/grafana/home.json:ro
       - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./ops/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - ./grafana_data:/var/lib/grafana

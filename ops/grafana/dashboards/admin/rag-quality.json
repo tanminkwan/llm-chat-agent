@@ -122,7 +122,7 @@
   ],
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["llm", "phase06", "rag"],
+  "tags": ["llm", "phase06", "admin", "rag"],
   "templating": { "list": [] },
   "time": { "from": "now-6h", "to": "now" },
   "timepicker": {},

@@ -201,7 +201,8 @@ async def get_config():
         "chat_model": settings.CHAT_LLM_MODEL,
         "chat_label": settings.CHAT_LLM_LABEL,
         "reasoning_model": settings.REASONING_LLM_MODEL,
-        "reasoning_label": settings.REASONING_LLM_LABEL
+        "reasoning_label": settings.REASONING_LLM_LABEL,
+        "grafana_url": settings.GRAFANA_ROOT_URL,
     }
 
 # --- RAG 관리 엔드포인트 (User 허용 기능) ---

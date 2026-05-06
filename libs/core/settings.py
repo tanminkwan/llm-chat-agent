@@ -46,4 +46,8 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     MEMORY_MAX_MESSAGES: int = 10
 
+    # Observability
+    # 메뉴의 Grafana 링크 대상. Grafana 컨테이너의 GF_SERVER_ROOT_URL 와 동일한 값이라 재사용한다.
+    GRAFANA_ROOT_URL: Optional[str] = None
+
 settings = Settings()

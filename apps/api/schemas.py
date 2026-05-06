@@ -74,6 +74,7 @@ class ConfigResponse(BaseModel):
     chat_label: str
     reasoning_model: str
     reasoning_label: str
+    grafana_url: Optional[str] = None
 
 class MessageResponse(BaseModel):
     message: str = Field(..., description="결과 메시지")
