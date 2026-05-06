@@ -1,0 +1,144 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "요청 수 (모델 유형별)",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (model_type) (count_over_time({container=\"llm-agent\", type=\"request\"}[1m]))",
+          "legendFormat": "{{model_type}}",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "응답 지연 (p50 / p95 / p99, ms)",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "ms", "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "p50",
+          "expr": "quantile_over_time(0.5, {container=\"llm-agent\", type=\"response\"} | json | unwrap latency_ms [5m])",
+          "legendFormat": "p50",
+          "datasource": { "type": "loki", "uid": "loki" }
+        },
+        {
+          "refId": "p95",
+          "expr": "quantile_over_time(0.95, {container=\"llm-agent\", type=\"response\"} | json | unwrap latency_ms [5m])",
+          "legendFormat": "p95",
+          "datasource": { "type": "loki", "uid": "loki" }
+        },
+        {
+          "refId": "p99",
+          "expr": "quantile_over_time(0.99, {container=\"llm-agent\", type=\"response\"} | json | unwrap latency_ms [5m])",
+          "legendFormat": "p99",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "에러율 (%)",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 } ] } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum(count_over_time({container=\"llm-agent\", type=\"error\"}[5m])) / clamp_min(sum(count_over_time({container=\"llm-agent\", type=\"request\"}[5m])), 1)) * 100",
+          "legendFormat": "error rate",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "토큰 사용량 (모델별, output_tokens 합계 5분)",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "out",
+          "expr": "sum by (model) (sum_over_time({container=\"llm-agent\", type=\"response\"} | json | output_tokens != \"\" | unwrap output_tokens [5m]))",
+          "legendFormat": "{{model}} (output)",
+          "datasource": { "type": "loki", "uid": "loki" }
+        },
+        {
+          "refId": "in",
+          "expr": "sum by (model) (sum_over_time({container=\"llm-agent\", type=\"response\"} | json | input_tokens != \"\" | unwrap input_tokens [5m]))",
+          "legendFormat": "{{model}} (input)",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "최근 요청 (raw)",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+      "options": { "showTime": true, "wrapLogMessage": true, "enableLogDetails": true, "dedupStrategy": "none", "sortOrder": "Descending" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{container=\"llm-agent\", type=~\"request|response|error\"}",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["llm", "phase06", "admin"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "LLM 운영 개요",
+  "uid": "llm-operational-overview",
+  "version": 1,
+  "weekStart": ""
+}

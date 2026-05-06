@@ -144,6 +144,12 @@ async function loadConfig() {
                     <option value="reasoning" style="background:#1e293b;">${config.reasoning_label} (${config.reasoning_model})</option>
                 `;
             }
+
+            const grafanaLink = document.getElementById('nav-grafana');
+            if (grafanaLink && config.grafana_url) {
+                grafanaLink.href = config.grafana_url;
+                grafanaLink.style.display = '';
+            }
         }
     } catch (err) {
         console.error('설정을 불러오는데 실패했습니다:', err);

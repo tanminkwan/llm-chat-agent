@@ -1,0 +1,146 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "사용자별 요청 수 Top 20 (선택 기간) — user_id 셀 클릭 시 아래 두 패널 자동 필터",
+      "type": "table",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "links": [
+            {
+              "title": "이 사용자로 LLM_LOG 필터",
+              "url": "/d/llm-user-drilldown?var-user_id=${__data.fields.user_id}&${__url_time_range}",
+              "targetBlank": false
+            }
+          ]
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "마지막 활동" },
+            "properties": [
+              { "id": "unit", "value": "dateTimeAsIso" }
+            ]
+          }
+        ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (user_id) (count_over_time({container=\"llm-agent\", type=~\"request|rag_search_request\"} | json [$__interval]))",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "queryType": "range"
+        }
+      ],
+      "transformations": [
+        { "id": "labelsToFields", "options": {} },
+        {
+          "id": "groupBy",
+          "options": {
+            "fields": {
+              "user_id": { "operation": "groupby", "aggregations": [] },
+              "Time": { "operation": "aggregate", "aggregations": ["max"] },
+              "Value": { "operation": "aggregate", "aggregations": ["sum"] }
+            }
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              { "fieldName": "user_id", "config": { "id": "isNotNull", "options": {} } }
+            ],
+            "type": "include",
+            "match": "all"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": { "user_id": 0, "Value (sum)": 1, "Time (max)": 2 },
+            "renameByName": {
+              "Value (sum)": "Value",
+              "Time (max)": "마지막 활동"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [{ "field": "Value", "desc": true }]
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "선택한 user_id 의 모든 LLM_LOG",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 14, "w": 12, "x": 12, "y": 0 },
+      "options": { "showTime": true, "wrapLogMessage": true, "enableLogDetails": true, "dedupStrategy": "none", "sortOrder": "Descending" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{container=\"llm-agent\"} | json | user_id = `$user_id`",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "선택한 request_id 의 단일 trace (request → rag_search* → response/error)",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 14 },
+      "options": { "showTime": true, "wrapLogMessage": true, "enableLogDetails": true, "dedupStrategy": "none", "sortOrder": "Ascending" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{container=\"llm-agent\"} | json | request_id = `$request_id`",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["llm", "phase06", "admin", "drilldown"],
+  "templating": {
+    "list": [
+      {
+        "name": "user_id",
+        "type": "textbox",
+        "label": "User ID (OIDC sub)",
+        "current": { "value": "", "text": "" },
+        "query": ""
+      },
+      {
+        "name": "request_id",
+        "type": "textbox",
+        "label": "Request ID (8자)",
+        "current": { "value": "", "text": "" },
+        "query": ""
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "LLM 사용자 / 트레이스 드릴다운",
+  "uid": "llm-user-drilldown",
+  "version": 1,
+  "weekStart": ""
+}
