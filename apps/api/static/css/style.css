@@ -613,3 +613,680 @@ textarea.query-input {
     color: var(--accent-color);
     border-bottom: 3px solid var(--accent-color);
 }
+
+/* ================================================================
+ * Phase 07 — Tool Lab
+ * ================================================================ */
+
+/* display 는 베이스 .view / .view.active 규칙에 위임 (그렇지 않으면 ID
+   셀렉터 우선순위 때문에 다른 뷰가 active 여도 toollab 이 함께 렌더됨). */
+#view-toollab {
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.toollab-grid {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+#view-toollab-run {
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#view-toollab-run .toollab-run-grid {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+#view-toollab-run .toollab-picker-pane,
+#view-toollab-run .toollab-runner-pane {
+    overflow-y: auto;
+    padding: 15px 18px;
+    border-right: 1px solid #334155;
+}
+
+#view-toollab-run .toollab-runner-pane { border-right: none; }
+
+#view-toollab-run .toollab-pane-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+#view-toollab-run .toollab-pane-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #cbd5e1;
+}
+
+#view-toollab-run .toollab-meta-badge {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+#view-toollab-run .toollab-picker-search {
+    width: 100%;
+    background: #0f172a;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    border-radius: 5px;
+    padding: 7px 10px;
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+}
+
+#view-toollab-run .toollab-picker-controls {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+#view-toollab-run .toollab-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#view-toollab-run .toollab-picker-group-label {
+    font-size: 0.7rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+#view-toollab-run .toollab-picker-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    background: #1e293b;
+    padding: 8px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+#view-toollab-run .toollab-picker-item:hover {
+    background: #243044;
+}
+
+#view-toollab-run .toollab-picker-item.selected {
+    border-color: var(--accent-color);
+    background: #1f2c44;
+}
+
+#view-toollab-run .toollab-picker-item input {
+    margin-top: 3px;
+    accent-color: var(--accent-color);
+    flex-shrink: 0;
+}
+
+#view-toollab-run .toollab-picker-item-body {
+    flex: 1;
+    min-width: 0;
+}
+
+#view-toollab-run .toollab-picker-item-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #e2e8f0;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+#view-toollab-run .toollab-picker-item-desc {
+    font-size: 0.74rem;
+    color: #94a3b8;
+    margin-top: 2px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+#view-toollab-run .toollab-picker-item-meta {
+    font-size: 0.68rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+#view-toollab-run .toollab-picker-empty {
+    color: #64748b;
+    font-style: italic;
+    padding: 20px 0;
+    text-align: center;
+}
+
+.toollab-list-pane,
+.toollab-editor-pane,
+.toollab-runner-pane {
+    overflow-y: auto;
+    padding: 15px 18px;
+    border-right: 1px solid #334155;
+}
+
+.toollab-runner-pane { border-right: none; }
+
+.toollab-pane-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.toollab-pane-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #cbd5e1;
+}
+
+.toollab-meta-badge {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+/* Tool list */
+.toollab-list-group-label {
+    font-size: 0.7rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 12px 0 6px;
+}
+
+.toollab-list-item {
+    background: #1e293b;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.toollab-list-item:hover {
+    background: #243044;
+}
+
+.toollab-list-item.selected {
+    border-color: var(--accent-color);
+    background: #1f2c44;
+}
+
+.toollab-list-item-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #e2e8f0;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.toollab-list-item-desc {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-top: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.toollab-list-item-meta {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.toollab-tag-macro {
+    background: #7c3aed;
+    color: white;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.toollab-tag-inactive {
+    background: #475569;
+    color: #cbd5e1;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.toollab-tag-public {
+    background: #10b981;
+    color: white;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.toollab-turn-header {
+    margin: 0.75rem 0 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-left: 3px solid #3b82f6;
+    background: #1e293b;
+    border-radius: 3px;
+}
+
+.toollab-turn-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #93c5fd;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+
+.toollab-turn-prompt {
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.toollab-public-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.toollab-public-toggle input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.toollab-list-item.inactive {
+    opacity: 0.55;
+}
+
+.toollab-list-item.inactive .toollab-list-item-name {
+    text-decoration: line-through;
+    color: #94a3b8;
+}
+
+.toollab-inactive-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0 10px;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    cursor: pointer;
+}
+
+.toollab-inactive-toggle input {
+    accent-color: var(--accent-color);
+}
+
+.toollab-empty {
+    color: #64748b;
+    font-style: italic;
+    padding: 20px 0;
+    text-align: center;
+}
+
+/* Form */
+.toollab-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toollab-form label {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-top: 6px;
+}
+
+.toollab-hint {
+    color: #64748b;
+    font-weight: normal;
+    font-size: 0.7rem;
+    margin-left: 4px;
+}
+
+.toollab-guidance {
+    background: rgba(96, 165, 250, 0.08);
+    border-left: 3px solid #60a5fa;
+    color: #cbd5e1;
+    font-size: 0.78rem;
+    line-height: 1.55;
+    padding: 10px 12px;
+    border-radius: 4px;
+    margin: 4px 0 6px;
+}
+
+.toollab-guidance strong {
+    color: #93c5fd;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.toollab-guidance code {
+    background: rgba(15, 23, 42, 0.6);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.74rem;
+}
+
+.toollab-guidance-list {
+    margin: 6px 0 0;
+    padding-left: 18px;
+}
+
+.toollab-guidance-list li {
+    margin-bottom: 3px;
+}
+
+.toollab-generate-row {
+    align-items: center;
+    margin-top: 6px;
+    margin-bottom: 10px;
+}
+
+#toollab-generate-btn {
+    background: #6366f1;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+#toollab-generate-btn:hover {
+    background: #4f46e5;
+}
+
+.toollab-run-options {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin: 6px 0 4px;
+}
+
+.toollab-checkbox-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #cbd5e1;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.toollab-checkbox-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-color);
+    cursor: pointer;
+}
+
+.toollab-inline-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #cbd5e1;
+    font-size: 0.82rem;
+}
+
+.toollab-inline-field input[type="number"] {
+    width: 70px;
+    padding: 4px 8px;
+    background: #0f172a;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    font-size: 0.82rem;
+}
+
+.toollab-form input[type="text"],
+.toollab-form textarea,
+.toollab-form select {
+    background: #0f172a;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    border-radius: 5px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    font-family: inherit;
+}
+
+.toollab-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.toollab-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.toollab-actions button {
+    padding: 7px 14px;
+    border-radius: 5px;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.toollab-btn-secondary {
+    background: #475569 !important;
+}
+
+.toollab-btn-danger {
+    background: #ef4444 !important;
+}
+
+.toollab-btn-small {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    background: var(--accent-color);
+    border: none;
+    color: white;
+    cursor: pointer;
+}
+
+.toollab-status-area {
+    margin-top: 10px;
+}
+
+.toollab-status {
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+}
+
+.toollab-status.success {
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+}
+
+.toollab-status.error {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+}
+
+.toollab-status.info {
+    background: rgba(96, 165, 250, 0.15);
+    color: #93c5fd;
+}
+
+/* Run / trace */
+.toollab-stats {
+    margin: 10px 0;
+}
+
+.toollab-stats-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    background: #1e293b;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: #cbd5e1;
+}
+
+.toollab-truncated {
+    color: #f59e0b;
+}
+
+.toollab-warn {
+    color: #f59e0b;
+}
+
+.toollab-trace {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toollab-running {
+    color: #94a3b8;
+    font-style: italic;
+    padding: 10px 0;
+}
+
+.toollab-step {
+    background: #1e293b;
+    border-radius: 6px;
+    padding: 10px 12px;
+    border-left: 3px solid #475569;
+}
+
+.toollab-step-ai { border-left-color: #60a5fa; }
+.toollab-step-tool { border-left-color: #34d399; }
+
+.toollab-step-header {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.toollab-content {
+    color: #e2e8f0;
+    margin: 6px 0;
+    white-space: pre-wrap;
+}
+
+.toollab-call {
+    font-family: ui-monospace, monospace;
+    color: #93c5fd;
+    font-size: 0.82rem;
+    margin: 3px 0;
+}
+
+.toollab-args {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-bottom: 4px;
+    word-break: break-all;
+}
+
+.toollab-args code {
+    background: #0f172a;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.toollab-step pre {
+    background: #0f172a;
+    padding: 10px;
+    border-radius: 5px;
+    color: #cbd5e1;
+    font-size: 0.78rem;
+    overflow-x: auto;
+    margin: 6px 0;
+}
+
+.toollab-step-meta {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.toollab-error {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.toollab-badge-ok {
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+}
+
+.toollab-badge-err {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+}
+
+.toollab-reasoning {
+    margin-top: 8px;
+}
+
+.toollab-reasoning summary {
+    cursor: pointer;
+    color: #c4b5fd;
+    font-size: 0.8rem;
+}
+
+.toollab-reasoning pre {
+    margin-top: 6px;
+}
+
+.toollab-final {
+    background: #064e3b;
+    border-radius: 6px;
+    padding: 12px;
+    color: #d1fae5;
+    border-left: 3px solid #10b981;
+    margin-top: 12px;
+}
+
+.toollab-final-label {
+    font-size: 0.75rem;
+    color: #6ee7b7;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
