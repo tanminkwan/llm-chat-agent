@@ -37,7 +37,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (user_id) (count_over_time({container=\"llm-agent\", type=~\"request|rag_search_request\"} | json [$__interval]))",
+          "expr": "sum by (user_id) (count_over_time({container=\"llm-agent\", type=~\"request|rag_search_request|toollab_run_request\"} | json [$__interval]))",
           "datasource": { "type": "loki", "uid": "loki" },
           "queryType": "range"
         }

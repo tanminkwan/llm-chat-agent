@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">AI 에이전트</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=12">
+    <link rel="stylesheet" href="/static/css/style.css?v=17">
 </head>
 
 <body data-view="chat">
@@ -27,6 +27,8 @@
                     ADMIN TOOLS</div>
                 <a href="/admin?tab=collection" class="nav-link" data-view="admin" data-tab="collection">📚 Collection</a>
                 <a href="/admin?tab=domain" class="nav-link" data-view="admin" data-tab="domain">🌐 Domain</a>
+                <a href="/toollab" class="nav-link" data-view="toollab" id="nav-toollab" style="display:none;">🛠 Tool Lab (편집)</a>
+                <a href="/toollab/run" class="nav-link" data-view="toollab-run" id="nav-toollab-run" style="display:none;">▶ Tool Run (실행)</a>
             </div>
         </nav>
 
@@ -354,6 +356,146 @@
             </div>
         </section>
 
+        <!-- ==================== Tool Lab View (Phase 07) ==================== -->
+        <section id="view-toollab" class="view">
+            <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #334155;">
+                <h1 style="margin: 0; font-size: 1.4rem;">🛠 Tool Lab</h1>
+                <div style="font-size: 0.8rem; color: #94a3b8;">
+                    동적 도구 등록 + LLM Tool Calling 시뮬레이터
+                </div>
+            </header>
+
+            <div class="toollab-grid">
+                <!-- 좌: 도구 목록 -->
+                <aside class="toollab-list-pane">
+                    <div class="toollab-pane-header">
+                        <h3>도구 목록</h3>
+                        <button id="toollab-new-btn" class="toollab-btn-small">+ 새 도구</button>
+                    </div>
+                    <label class="toollab-inactive-toggle">
+                        <input type="checkbox" id="toollab-show-inactive" />
+                        <span>비활성 포함</span>
+                    </label>
+                    <div id="toollab-tool-list" class="toollab-tool-list"></div>
+                </aside>
+
+                <!-- 중: 도구 편집 -->
+                <section class="toollab-editor-pane">
+                    <div class="toollab-pane-header">
+                        <h3 id="toollab-editor-title">도구 편집</h3>
+                        <span id="toollab-editor-meta" class="toollab-meta-badge"></span>
+                    </div>
+                    <div class="toollab-form">
+                        <input type="hidden" id="toollab-edit-id" />
+                        <input type="hidden" id="toollab-edit-owner" />
+                        <label>name <span class="toollab-hint">[a-zA-Z_][a-zA-Z0-9_]{0,63}</span></label>
+                        <input type="text" id="toollab-name" placeholder="my_tool" />
+                        <label>description</label>
+                        <textarea id="toollab-description" rows="2" placeholder="도구가 무엇을 하는지 한 줄 설명"></textarea>
+                        <label>tags <span class="toollab-hint">(콤마 구분, 선택)</span></label>
+                        <input type="text" id="toollab-tags" placeholder="atomic, demo" />
+                        <label class="toollab-public-toggle">
+                            <input type="checkbox" id="toollab-is-public" />
+                            다른 사용자에게 공개 (Run picker 에서 보임 · 편집/삭제는 소유자만)
+                        </label>
+
+                        <label>code (Python — 반드시 <code>def handler(...)</code> 정의)</label>
+                        <div class="toollab-guidance">
+                            <strong>⚠ 모든 파라미터와 반환값에 타입 힌트가 필수입니다.</strong>
+                            아래 <em>“Generate from code”</em> 버튼은 코드의 타입 힌트만 보고 parameters/returns 의 JSON Schema 초안을 만들어 채워줍니다. 결과를 검토하고 필요하면 description·enum·제약을 수동으로 보강한 뒤 <em>저장</em> 하세요.
+                            <ul class="toollab-guidance-list">
+                                <li>파라미터: <code>x: int</code>, <code>name: str</code>, <code>xs: list[int]</code>, <code>m: dict[str, int]</code>, <code>mode: Literal["a","b"]</code>, <code>x: int | None</code></li>
+                                <li>반환값: <code>-&gt; dict</code> 의 경우 본문의 <code>return {"k": v, ...}</code> literal 을 분석해 키별로 타입을 추정합니다. 변수 참조는 파라미터 힌트 / 본문 할당의 마지막 타입을 따르고, 추정 못 한 값은 <code>{"type":"string"}</code> 으로 떨어지니 필요하면 type 한 글자만 바꿔 주세요.</li>
+                                <li>스칼라·배열 반환(<code>-&gt; int</code>, <code>-&gt; list[int]</code>)은 <code>{"result": ...}</code> 로 자동 래핑됩니다.</li>
+                                <li>기본값이 있는 파라미터는 <code>required</code> 에서 자동 제외됩니다.</li>
+                            </ul>
+                        </div>
+                        <textarea id="toollab-code" rows="14" class="toollab-mono"></textarea>
+
+                        <div class="toollab-actions toollab-generate-row">
+                            <button type="button" id="toollab-generate-btn">⚙ Generate from code</button>
+                            <span class="toollab-hint">↑ parameters / returns 를 코드의 타입 힌트로 채웁니다. 저장 전에 결과를 반드시 검토하세요.</span>
+                        </div>
+
+                        <label>parameters (JSON Schema) <span class="toollab-hint">— Generate from code 결과를 검토/수정</span></label>
+                        <textarea id="toollab-parameters" rows="6" class="toollab-mono"></textarea>
+                        <label>returns (JSON Schema) <span class="toollab-hint">— Generate from code 결과를 검토/수정</span></label>
+                        <textarea id="toollab-returns" rows="6" class="toollab-mono"></textarea>
+
+                        <div class="toollab-actions">
+                            <button type="button" id="toollab-validate-btn" class="toollab-btn-secondary">검증</button>
+                            <button type="button" id="toollab-save-btn">저장</button>
+                            <button type="button" id="toollab-active-btn" class="toollab-btn-secondary">비활성화</button>
+                            <button type="button" id="toollab-delete-btn" class="toollab-btn-danger">삭제</button>
+                            <button type="button" id="toollab-clear-btn" class="toollab-btn-secondary">초기화</button>
+                        </div>
+                        <div id="toollab-edit-status" class="toollab-status-area"></div>
+                    </div>
+                </section>
+
+            </div>
+        </section>
+
+        <!-- ==================== Tool Run View (Phase 07) ==================== -->
+        <section id="view-toollab-run" class="view">
+            <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #334155;">
+                <h1 style="margin: 0; font-size: 1.4rem;">▶ Tool Run</h1>
+                <div style="font-size: 0.8rem; color: #94a3b8;">
+                    선택한 도구만 LLM 에 bind — 도구 schema 비대화 방지
+                </div>
+            </header>
+
+            <div class="toollab-run-grid">
+                <!-- 좌: 도구 선택기 -->
+                <aside class="toollab-picker-pane">
+                    <div class="toollab-pane-header">
+                        <h3>도구 선택</h3>
+                        <span id="toollab-picker-count" class="toollab-meta-badge">0 / 0 선택</span>
+                    </div>
+                    <input type="text" id="toollab-picker-search" placeholder="이름/태그 검색..." class="toollab-picker-search" />
+                    <div class="toollab-picker-controls">
+                        <button type="button" id="toollab-picker-select-all" class="toollab-btn-secondary toollab-btn-small">전체 선택</button>
+                        <button type="button" id="toollab-picker-clear-all" class="toollab-btn-secondary toollab-btn-small">전체 해제</button>
+                        <button type="button" id="toollab-picker-refresh" class="toollab-btn-secondary toollab-btn-small">새로고침</button>
+                    </div>
+                    <div id="toollab-picker-list" class="toollab-picker-list"></div>
+                </aside>
+
+                <!-- 우: 실행 + 트레이스 -->
+                <section class="toollab-runner-pane">
+                    <div class="toollab-pane-header">
+                        <h3>실행</h3>
+                    </div>
+                    <div class="toollab-form">
+                        <label>모델</label>
+                        <select id="toollab-model"></select>
+                        <label>system 프롬프트 <span class="toollab-hint">(비우면 기본값)</span></label>
+                        <textarea id="toollab-system-prompt" rows="2"></textarea>
+                        <label>prompt</label>
+                        <textarea id="toollab-prompt" rows="4" placeholder="자연어로 작업을 지시하세요..."></textarea>
+
+                        <div class="toollab-run-options">
+                            <label class="toollab-checkbox-row" title="체크하면 한 턴에 한 tool 만 호출 (parallel_tool_calls=False). 조건부 흐름(예: get_user 결과 보고 create_user)에 권장.">
+                                <input type="checkbox" id="toollab-sequential" checked />
+                                <span>Sequential tool calls (한 턴에 1개)</span>
+                            </label>
+                            <label class="toollab-inline-field" title="이번 Run 에서 허용할 LLM↔tool 왕복 최대 횟수. 비우면 서버 기본값(8) 사용. 하드캡 16.">
+                                <span>Max iterations</span>
+                                <input type="number" id="toollab-max-iter" min="1" max="16" placeholder="8" />
+                            </label>
+                        </div>
+
+                        <div class="toollab-actions">
+                            <button type="button" id="toollab-run-btn">실행</button>
+                            <button type="button" id="toollab-clear-trace-btn" class="toollab-btn-secondary" title="대화 history 와 트레이스를 모두 초기화합니다.">새 대화 (history 초기화)</button>
+                        </div>
+                        <div id="toollab-run-stats" class="toollab-stats"></div>
+                        <div id="toollab-trace" class="toollab-trace"></div>
+                    </div>
+                </section>
+            </div>
+        </section>
+
     </main>
 
     <!-- 전역 오버레이/사이드바 (RAG, Bulk 뷰가 공유) -->
@@ -469,12 +611,13 @@
     </div>
 
     <!-- JS 모듈 -->
-    <script src="/static/js/chat.js?v=12"></script>
-    <script src="/static/js/rag.js?v=12"></script>
-    <script src="/static/js/bulk.js?v=12"></script>
-    <script src="/static/js/admin.js?v=12"></script>
-    <script src="/static/js/prompt.js?v=12"></script>
-    <script src="/static/js/app.js?v=12"></script>
+    <script src="/static/js/chat.js?v=17"></script>
+    <script src="/static/js/rag.js?v=17"></script>
+    <script src="/static/js/bulk.js?v=17"></script>
+    <script src="/static/js/admin.js?v=17"></script>
+    <script src="/static/js/prompt.js?v=17"></script>
+    <script src="/static/js/toollab.js?v=17"></script>
+    <script src="/static/js/app.js?v=17"></script>
 </body>
 
 </html>

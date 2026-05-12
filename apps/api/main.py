@@ -35,6 +35,12 @@ from libs.core.database import get_db, engine, Base, AsyncSessionLocal
 from libs.core.service import RAGService, PromptService
 from libs.core.logging_helpers import emit_llm_log, extract_usage, rag_score_summary
 
+# Phase 07 — Tool Lab. Importing the models here ensures they register on
+# Base.metadata before startup's create_all runs.
+from libs.toollab import models as _toollab_models  # noqa: F401 — side-effect import
+from libs.toollab import seed as toollab_seed
+from apps.api.routers.toollab import router as toollab_router
+
 app = FastAPI(
     title=settings.APP_NAME,
     docs_url=None,   # CDN 의존성 제거를 위해 기본 경로 비활성화
@@ -86,6 +92,18 @@ async def redoc_html():
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # Phase 07 — hydrate the in-memory tool registry (seed + user tools).
+    if settings.TOOLLAB_ENABLED:
+        async with AsyncSessionLocal() as db:
+            try:
+                await toollab_seed.bootstrap(db)
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("toollab bootstrap failed: %s", exc)
+
+
+# Phase 07 — register Tool Lab API router (gated by TOOLLAB_ENABLED).
+if settings.TOOLLAB_ENABLED:
+    app.include_router(toollab_router)
 
 from .schemas import (
     CollectionCreate, CollectionRead, DomainCreate, DomainRead,
@@ -181,6 +199,28 @@ async def prompts_console(request: Request):
         return redirect
     return FileResponse(SPA_INDEX_PATH)
 
+
+@app.get("/toollab", tags=["UI"], summary="SPA - Tool Lab (편집)")
+@app.get("/toollab/run", tags=["UI"], summary="SPA - Tool Run (실행)")
+async def toollab_console(request: Request):
+    """SPA 셸 — 클라이언트 라우터가 Tool Lab / Tool Run 뷰를 활성화.
+    TOOLLAB_ALLOWED_GROUPS 멤버만 진입."""
+    if not settings.TOOLLAB_ENABLED:
+        return RedirectResponse(url="/static/unauthorized.html")
+    redirect = _require_user(request)
+    if redirect:
+        return redirect
+    user = request.session.get("user") or {}
+    groups = set(user.get("groups", []))
+    allowed = {
+        g.strip()
+        for g in (settings.TOOLLAB_ALLOWED_GROUPS or "").split(",")
+        if g.strip()
+    }
+    if allowed and not (groups & allowed) and "Admin" not in groups:
+        return RedirectResponse(url="/static/unauthorized.html")
+    return FileResponse(SPA_INDEX_PATH)
+
 async def get_current_user(request: Request) -> UserInfo:
     """세션에서 사용자 정보를 가져오는 의존성 주입 함수"""
     user = request.session.get('user')
@@ -203,6 +243,12 @@ async def get_config():
         "reasoning_model": settings.REASONING_LLM_MODEL,
         "reasoning_label": settings.REASONING_LLM_LABEL,
         "grafana_url": settings.GRAFANA_ROOT_URL,
+        "toollab_enabled": settings.TOOLLAB_ENABLED,
+        "toollab_allowed_groups": [
+            g.strip()
+            for g in (settings.TOOLLAB_ALLOWED_GROUPS or "").split(",")
+            if g.strip()
+        ],
     }
 
 # --- RAG 관리 엔드포인트 (User 허용 기능) ---

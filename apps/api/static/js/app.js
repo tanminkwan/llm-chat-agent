@@ -6,8 +6,11 @@
  *  - 뷰 전환 시 DOM은 유지하고 display 만 토글하므로 작업 상태가 보존됨
  */
 
-const VIEW_IDS = ['chat', 'rag', 'prompts', 'bulk', 'admin'];
-const viewInitialized = { chat: false, rag: false, prompts: false, bulk: false, admin: false };
+const VIEW_IDS = ['chat', 'rag', 'prompts', 'bulk', 'admin', 'toollab', 'toollab-run'];
+const viewInitialized = {
+    chat: false, rag: false, prompts: false, bulk: false, admin: false,
+    toollab: false, 'toollab-run': false,
+};
 
 window.addEventListener('DOMContentLoaded', () => {
     checkLogin();
@@ -31,6 +34,9 @@ function parseLocation() {
     else if (path.startsWith('/prompts')) view = 'prompts';
     else if (path.startsWith('/bulk')) view = 'bulk';
     else if (path.startsWith('/admin')) view = 'admin';
+    // /toollab/run 가 /toollab 보다 먼저 매칭되도록 더 긴 prefix 를 위에 둠
+    else if (path.startsWith('/toollab/run')) view = 'toollab-run';
+    else if (path.startsWith('/toollab')) view = 'toollab';
 
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
@@ -90,6 +96,8 @@ function showView(view, opts = {}) {
 function pathFor(view, tab) {
     if (view === 'chat') return '/';
     if (view === 'admin') return `/admin?tab=${tab || 'collection'}`;
+    if (view === 'toollab') return '/toollab';
+    if (view === 'toollab-run') return '/toollab/run';
     return `/${view}`;
 }
 
@@ -124,6 +132,19 @@ function initView(view, tab) {
         if (typeof switchTab === 'function') {
             switchTab(tab || 'collection', { push: false });
         }
+    } else if (view === 'toollab') {
+        if (!viewInitialized.toollab) {
+            if (typeof initToollab === 'function') initToollab();
+            viewInitialized.toollab = true;
+        }
+    } else if (view === 'toollab-run') {
+        if (!viewInitialized['toollab-run']) {
+            if (typeof initToollabRun === 'function') initToollabRun();
+            viewInitialized['toollab-run'] = true;
+        } else {
+            // Re-fetch the picker list so newly registered tools appear.
+            if (typeof toollabPickerRefresh === 'function') toollabPickerRefresh();
+        }
     }
 }
 
@@ -145,10 +166,29 @@ async function loadConfig() {
                 `;
             }
 
+            // Tool Run 의 모델 select 도 동일하게 채운다. initToollabRun() 이
+            // loadConfig() 보다 먼저 끝나는 경쟁이 흔해서 거기서만 채우면 라벨이
+            // 빈 괄호로 그려질 수 있다 — 여기서 한 번 더 덮어써 안전하게.
+            const toollabModelSelect = document.getElementById('toollab-model');
+            if (toollabModelSelect) {
+                toollabModelSelect.innerHTML = `
+                    <option value="chat">${config.chat_label || 'chat'} (${config.chat_model || ''})</option>
+                    <option value="reasoning">${config.reasoning_label || 'reasoning'} (${config.reasoning_model || ''})</option>
+                `;
+            }
+
             const grafanaLink = document.getElementById('nav-grafana');
             if (grafanaLink && config.grafana_url) {
                 grafanaLink.href = config.grafana_url;
                 grafanaLink.style.display = '';
+            }
+
+            // Tool Lab nav visibility — gated server-side by TOOLLAB_ALLOWED_GROUPS.
+            // We still resolve user groups on the client side to hide the menu
+            // proactively (the API itself enforces authorisation).
+            window.__APP_CONFIG__ = config;
+            if (config.toollab_enabled) {
+                applyToollabNav();
             }
         }
     } catch (err) {
@@ -161,6 +201,7 @@ async function checkLogin() {
         const response = await fetch('/user/me');
         if (response.ok) {
             const user = await response.json();
+            window.__APP_USER__ = user;
             document.getElementById('login-section').style.display = 'none';
             document.getElementById('user-info').style.display = 'block';
             document.getElementById('username').innerText = user.preferred_username;
@@ -172,8 +213,30 @@ async function checkLogin() {
             if (is_admin) {
                 document.getElementById('admin-panel').style.display = 'flex';
             }
+            applyToollabNav();
         }
     } catch (err) {
         console.log('Not logged in');
     }
+}
+
+/** Show or hide the Tool Lab nav links based on config + user groups. */
+function applyToollabNav() {
+    const cfg = window.__APP_CONFIG__;
+    const user = window.__APP_USER__;
+    const links = [
+        document.getElementById('nav-toollab'),
+        document.getElementById('nav-toollab-run'),
+    ].filter(Boolean);
+    if (!links.length || !cfg || !user) return;
+    if (!cfg.toollab_enabled) {
+        links.forEach(l => l.style.display = 'none');
+        return;
+    }
+    const allowed = cfg.toollab_allowed_groups || [];
+    const groups = user.groups || [];
+    const ok = !allowed.length
+        || groups.includes('Admin')
+        || allowed.some(g => groups.includes(g));
+    links.forEach(l => l.style.display = ok ? '' : 'none');
 }

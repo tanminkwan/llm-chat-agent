@@ -75,6 +75,8 @@ class ConfigResponse(BaseModel):
     reasoning_model: str
     reasoning_label: str
     grafana_url: Optional[str] = None
+    toollab_enabled: bool = False
+    toollab_allowed_groups: List[str] = Field(default_factory=list)
 
 class MessageResponse(BaseModel):
     message: str = Field(..., description="결과 메시지")

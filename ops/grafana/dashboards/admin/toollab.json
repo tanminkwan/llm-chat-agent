@@ -1,0 +1,225 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Phase 07 Tool Lab — run / tool-call / parser-leak 메트릭. (P07_설계서.md §10)",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Tool Lab Runs (per minute)",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (model_id) (count_over_time({container=\"llm-agent\", type=\"toollab_run_request\"} | json [1m]))",
+          "legendFormat": "{{model_id}}",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Tool Calls (per minute)",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum (count_over_time({container=\"llm-agent\", type=\"toollab_tool_call\"}[1m]))",
+          "legendFormat": "tool calls",
+          "datasource": { "type": "loki", "uid": "loki" }
+        },
+        {
+          "refId": "B",
+          "expr": "sum (count_over_time({container=\"llm-agent\", type=\"toollab_tool_call\"} | json | ok=\"false\" [1m]))",
+          "legendFormat": "errors",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "도구별 호출 빈도 (1h, Top 20)",
+      "type": "barchart",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "options": { "orientation": "horizontal", "legend": { "displayMode": "hidden" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(20, sum by (tool_name) (count_over_time({container=\"llm-agent\", type=\"toollab_tool_call\"} | json [1h])))",
+          "legendFormat": "{{tool_name}}",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "평균 iterations (1h)",
+      "type": "stat",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 8 } ] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "graphMode": "area" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg (avg_over_time({container=\"llm-agent\", type=\"toollab_run_response\"} | json | unwrap iterations [1h]))",
+          "legendFormat": "avg iterations",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Truncated 비율 (1h, %)",
+      "type": "stat",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 10 } ] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "graphMode": "area" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum(count_over_time({container=\"llm-agent\", type=\"toollab_run_response\"} | json | truncated=\"true\" [1h])) / clamp_min(sum(count_over_time({container=\"llm-agent\", type=\"toollab_run_response\"}[1h])), 1)) * 100",
+          "legendFormat": "truncated %",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "tool_call_parser_leak 발생 (1h)",
+      "type": "stat",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 12 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "graphMode": "area", "textMode": "value_and_name" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum (count_over_time({container=\"llm-agent\", type=\"toollab_tool_parser_leak\"}[1h]))",
+          "legendFormat": "leaks",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "model_id × tool_call_parser 평균 iterations / latency (1h)",
+      "type": "table",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 5 } ] } },
+        "overrides": []
+      },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "iter",
+          "expr": "avg by (model_id, tool_call_parser) (avg_over_time({container=\"llm-agent\", type=\"toollab_run_response\"} | json | unwrap iterations [1h]))",
+          "legendFormat": "iterations",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "instant": true
+        },
+        {
+          "refId": "lat",
+          "expr": "avg by (model_id, tool_call_parser) (avg_over_time({container=\"llm-agent\", type=\"toollab_run_response\"} | json | unwrap latency_ms [1h]))",
+          "legendFormat": "latency_ms",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Tool 실행 에러 분포 (1h, error_kind 별)",
+      "type": "barchart",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "options": { "orientation": "horizontal", "legend": { "displayMode": "hidden" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (error_kind) (count_over_time({container=\"llm-agent\", type=\"toollab_tool_call\"} | json | ok=\"false\" [1h]))",
+          "legendFormat": "{{error_kind}}",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "최근 Tool Lab 이벤트 (raw)",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 25 },
+      "options": { "showTime": true, "wrapLogMessage": true, "enableLogDetails": true, "dedupStrategy": "none", "sortOrder": "Descending" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{container=\"llm-agent\", type=~\"toollab_.*\"}",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["llm", "phase07", "toollab", "admin"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "LLM Tool Lab",
+  "uid": "llm-toollab",
+  "version": 1,
+  "weekStart": ""
+}

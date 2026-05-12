@@ -127,7 +127,8 @@ OIDC SSO 는 Phase 06.1 에서 활성화 예정이며, 그 전까지는 임시 a
 | P05 | SPA 전환 | ✅ |
 | P05.1 | 개인 Prompt 관리 | ✅ |
 | P06 | Loki/Promtail/Grafana 관측성 | ✅ |
-| P06.1 | Grafana OIDC SSO 연동 | 예정 |
+| P06.1 | Grafana OIDC SSO 연동 | ✅ |
+| P07 | Tool Lab — 동적 도구 등록 + LLM Tool Calling 시뮬레이터 | 진행 중 |
 
 각 Phase 의 요구사항·설계서·테스트결과서는 [`docs/`](docs/) 에 있다.
 
@@ -140,6 +141,9 @@ OIDC SSO 는 Phase 06.1 에서 활성화 예정이며, 그 전까지는 임시 a
 - [`docs/배포가이드.md`](docs/배포가이드.md) — 운영 배포 체크리스트
 - [`docs/권한관리설계서.md`](docs/권한관리설계서.md) — 사용자/관리자 권한 모델
 - [`docs/P06_설계서.md`](docs/P06_설계서.md) — 관측성 스택 상세
+- [`docs/P07_요구사항.md`](docs/P07_요구사항.md) — Tool Lab 요구사항
+- [`docs/P07_설계서.md`](docs/P07_설계서.md) — Tool Lab 설계서
+- [`docs/P07_vllm_tool_calling_검증.md`](docs/P07_vllm_tool_calling_검증.md) — vLLM tool calling 사전 검증 결과
 
 ---
 
