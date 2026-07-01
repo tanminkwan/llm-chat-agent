@@ -65,6 +65,16 @@ def extract_usage(final_chunk: Any) -> dict:
 
     input_tokens = usage_metadata.get("input_tokens")
     output_tokens = usage_metadata.get("output_tokens")
+
+    # vLLM fallback (usage.prompt_tokens / usage.completion_tokens)
+    if input_tokens is None or output_tokens is None:
+        usage = getattr(final_chunk, "usage", None)
+        if usage is not None:
+            if input_tokens is None:
+                input_tokens = getattr(usage, "prompt_tokens", usage.get("prompt_tokens") if isinstance(usage, dict) else None)
+            if output_tokens is None:
+                output_tokens = getattr(usage, "completion_tokens", usage.get("completion_tokens") if isinstance(usage, dict) else None)
+
     if not isinstance(input_tokens, (int, type(None))):
         input_tokens = None
     if not isinstance(output_tokens, (int, type(None))):
