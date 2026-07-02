@@ -109,7 +109,7 @@ from .schemas import (
     CollectionCreate, CollectionRead, DomainCreate, DomainRead,
     KnowledgeCreate, SearchResult, SearchRequest, UserInfo, ConfigResponse,
     MessageResponse, TaskStatusResponse, DeleteCountResponse, ChatRequest,
-    PromptCreate, PromptUpdate, PromptRead
+    PromptCreate, PromptUpdate, PromptRead, ChatResponse
 )
 # --- 인증 관련 엔드포인트 ---
 
@@ -221,8 +221,39 @@ async def toollab_console(request: Request):
         return RedirectResponse(url="/static/unauthorized.html")
     return FileResponse(SPA_INDEX_PATH)
 
-async def get_current_user(request: Request) -> UserInfo:
-    """세션에서 사용자 정보를 가져오는 의존성 주입 함수"""
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import httpx
+
+bearer_scheme = HTTPBearer(auto_error=False)
+
+async def get_current_user(
+    request: Request, 
+    token: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme)
+) -> UserInfo:
+    """세션 또는 API Key(Bearer)에서 사용자 정보를 가져오는 의존성 주입 함수"""
+    
+    # 1. API Key 검증 (Proxy to IDP)
+    if token and token.credentials:
+        api_key = token.credentials
+        try:
+            async with httpx.AsyncClient(verify=False) as client:
+                idp_url = f"{settings.OIDC_ISSUER}/api/sync/status"
+                resp = await client.get(
+                    idp_url,
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    timeout=3.0
+                )
+                if resp.status_code == 200:
+                    return UserInfo(
+                        sub="api-key-user",
+                        preferred_username="API Client",
+                        groups=["Admin"],
+                        email="api@client.local"
+                    )
+        except Exception as e:
+            logger.error(f"API Key validation failed: {e}")
+
+    # 2. 세션 검증 (기존 방식 Fallback)
     user = request.session.get('user')
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -639,12 +670,18 @@ async def chat(
         async def stream_with_logging():
             nonlocal full_response, final_chunk
             try:
+                aggregated_chunk = None
                 async for chunk in llm.astream(messages):
-                    final_chunk = chunk
+                    if aggregated_chunk is None:
+                        aggregated_chunk = chunk
+                    else:
+                        aggregated_chunk += chunk
+                        
                     content = chunk.content
                     if content:
                         full_response += content
                         yield f"data: {json.dumps({'content': content}, ensure_ascii=False)}\n\n"
+                final_chunk = aggregated_chunk
             except Exception as e:
                 emit_llm_log("error", {
                     "request_id": request_id,
@@ -679,6 +716,73 @@ async def chat(
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@app.post("/api/chat/sync", tags=["Chat"], response_model=ChatResponse, summary="LLM 대화 (Single Response)")
+async def chat_sync(
+    user: UserInfo = Depends(get_current_user),
+    request: ChatRequest = Body(...)
+):
+    """LLM과 대화를 수행하며, 스트리밍 없이 완성된 최종 응답을 JSON 형태로 반환합니다."""
+    if not any(role in user.groups for role in ["Admin", "User"]):
+        raise HTTPException(status_code=403, detail="사용 권한이 없습니다.")
+
+    actual_thread_id = request.thread_id or f"user_{user.sub}"
+    
+    if request.model_type == "reasoning":
+        llm = LLMGateway.get_reasoning_llm(streaming=False, temperature=request.temperature)
+    else:
+        llm = LLMGateway.get_chat_llm(streaming=False, temperature=request.temperature)
+    
+    history = memory_manager.get_thread_history(actual_thread_id)
+    
+    request_id = str(uuid.uuid4())[:8]
+    user_id = user.sub
+    started_at = time.perf_counter()
+    system_prompt = request.system_prompt or "당신은 AI 어시스턴트입니다."
+    messages = [SystemMessage(content=system_prompt)] + history.messages + [HumanMessage(content=request.message)]
+
+    emit_llm_log("debug", {
+        "request_id": request_id,
+        "user_id": user_id,
+        "type": "request",
+        "thread_id": actual_thread_id,
+        "model_type": request.model_type,
+        "messages": [{"role": msg.type, "content": msg.content} for msg in messages],
+    })
+
+    try:
+        response = await llm.ainvoke(messages)
+    except Exception as e:
+        emit_llm_log("error", {
+            "request_id": request_id,
+            "thread_id": actual_thread_id,
+            "user_id": user_id,
+            "type": "error",
+            "error": str(e),
+            "latency_ms": int((time.perf_counter() - started_at) * 1000),
+        })
+        raise HTTPException(status_code=500, detail=str(e))
+
+    full_response = str(response.content)
+    usage = extract_usage(response)
+
+    emit_llm_log("debug", {
+        "request_id": request_id,
+        "thread_id": actual_thread_id,
+        "user_id": user_id,
+        "type": "response",
+        "model_type": request.model_type,
+        "model": usage["model"],
+        "input_tokens": usage["input_tokens"],
+        "output_tokens": usage["output_tokens"],
+        "latency_ms": int((time.perf_counter() - started_at) * 1000),
+        "full_response": full_response,
+    })
+
+    history.add_user_message(request.message)
+    history.add_ai_message(full_response)
+    
+    return ChatResponse(content=full_response, usage=usage)
 
 # --- Excel Batch Upload 엔드포인트 ---
 

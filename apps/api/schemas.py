@@ -121,3 +121,7 @@ class ChatRequest(BaseModel):
     system_prompt: Optional[str] = Field(None, description="시스템 프롬프트")
     temperature: Optional[float] = Field(0.7, description="창의성 조절 (0~1)")
     thread_id: Optional[str] = Field(None, description="대화 쓰레드 ID")
+
+class ChatResponse(BaseModel):
+    content: str = Field(..., description="LLM 응답 텍스트")
+    usage: Optional[dict] = Field(None, description="토큰 사용량 메타데이터")
