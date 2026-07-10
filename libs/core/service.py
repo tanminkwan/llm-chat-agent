@@ -255,7 +255,7 @@ class RAGService:
             collection_name=collection_name,
             points_selector=qmodels.PointIdsList(points=[point_id])
         )
-        return {"status": "success"}
+        return {"message": "success"}
 
     async def count_knowledge_points(self, collection_name: str, domain_id: Optional[int] = None, source: Optional[str] = None) -> int:
         """조건에 맞는 지식 데이터 개수 조회"""
@@ -291,7 +291,7 @@ class RAGService:
             collection_name=collection_name,
             points_selector=qmodels.FilterSelector(filter=filter_obj)
         )
-        return {"status": "success"}
+        return {"message": "success"}
 
 
 class PromptService:
