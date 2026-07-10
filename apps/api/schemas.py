@@ -125,3 +125,9 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     content: str = Field(..., description="LLM 응답 텍스트")
     usage: Optional[dict] = Field(None, description="토큰 사용량 메타데이터")
+
+class EmbeddingRequest(BaseModel):
+    texts: List[str] = Field(..., description="임베딩할 텍스트 목록")
+
+class EmbeddingResponse(BaseModel):
+    embeddings: List[List[float]] = Field(..., description="결과 임베딩 벡터 목록")
