@@ -39,6 +39,13 @@ async def get_current_user(
 ) -> UserInfo:
     """세션 또는 API Key(Bearer)에서 사용자 정보를 가져오는 의존성 주입 함수"""
     
+    if settings.NON_LOGIN_SERVICE:
+        return UserInfo(
+            sub="nobody",
+            preferred_username="nobody",
+            groups=["Admin"]
+        )
+
     # 1. API Key 검증 (Proxy to IDP)
     if token and token.credentials:
         api_key = token.credentials

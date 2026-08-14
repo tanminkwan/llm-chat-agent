@@ -133,6 +133,8 @@ OIDC SSO 는 Phase 06.1 에서 활성화 예정이며, 그 전까지는 임시 a
 | P06 | Loki/Alloy/Grafana 관측성 (구 Promtail) | ✅ |
 | P06.1 | Grafana OIDC SSO 연동 | ✅ |
 | P07 | Tool Lab — 동적 도구 등록 + LLM Tool Calling 시뮬레이터 (도구 공유 · multi-turn · 양방향 본문 로깅) | ✅ |
+| P08 | 하이브리드 REST API 인증 (API Key 위임 검증) | ✅ |
+| P09 | 비 로그인 서비스 (Standalone) 모드 지원 | ✅ |
 
 각 Phase 의 요구사항·설계서·테스트결과서는 [`docs/`](docs/) 에 있다.
 

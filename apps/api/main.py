@@ -52,13 +52,14 @@ app.add_middleware(SessionMiddleware, secret_key=settings.OIDC_CLIENT_SECRET)
 
 # OAuth 설정
 oauth = OAuth()
-oauth.register(
-    name='mwm-idp',
-    client_id=settings.OIDC_CLIENT_ID,
-    client_secret=settings.OIDC_CLIENT_SECRET,
-    server_metadata_url=f"{settings.OIDC_ISSUER}/.well-known/openid-configuration",
-    client_kwargs={'scope': 'openid profile email groups', 'verify': False}
-)
+if not settings.NON_LOGIN_SERVICE:
+    oauth.register(
+        name='mwm-idp',
+        client_id=settings.OIDC_CLIENT_ID,
+        client_secret=settings.OIDC_CLIENT_SECRET,
+        server_metadata_url=f"{settings.OIDC_ISSUER}/.well-known/openid-configuration",
+        client_kwargs={'scope': 'openid profile email groups', 'verify': False}
+    )
 
 # 정적 파일 경로 설정 (UI용)
 static_dir = os.path.join(os.path.dirname(__file__), "static")
@@ -110,12 +111,17 @@ if settings.TOOLLAB_ENABLED:
 @app.get("/auth/login", tags=["Auth"], summary="IDP 로그인")
 async def login(request: Request):
     """IDP 로그인 페이지로 리다이렉트하여 인증을 시작합니다."""
+    if settings.NON_LOGIN_SERVICE:
+        return RedirectResponse(url="/")
     redirect_uri = settings.OIDC_REDIRECT_URI
     return await oauth.create_client('mwm-idp').authorize_redirect(request, redirect_uri)
 
 @app.get("/auth/callback", tags=["Auth"], summary="IDP 콜백")
 async def auth_callback(request: Request):
     """IDP 인증 완료 후 토큰을 처리하고 세션을 생성합니다."""
+    if settings.NON_LOGIN_SERVICE:
+        return RedirectResponse(url="/")
+        
     token = await oauth.create_client('mwm-idp').authorize_access_token(request)
     user_info = token.get('userinfo')
     
@@ -132,6 +138,8 @@ async def auth_callback(request: Request):
 @app.get("/auth/logout", tags=["Auth"], summary="로그아웃")
 async def logout(request: Request):
     """서버 세션을 초기화하고 로그인 페이지로 보냅니다."""
+    if settings.NON_LOGIN_SERVICE:
+        return RedirectResponse(url="/")
     request.session.clear()
     return RedirectResponse(url="/auth/login")
 
@@ -144,6 +152,9 @@ SPA_INDEX_PATH = os.path.join(static_dir, "index.html")
 
 def _require_user(request: Request, admin_only: bool = False):
     """세션 기반 인증 체크. 인증 실패 시 RedirectResponse, 통과 시 None."""
+    if settings.NON_LOGIN_SERVICE:
+        return None
+
     user = request.session.get('user')
     if not user:
         return RedirectResponse(url="/auth/login")

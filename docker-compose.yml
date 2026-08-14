@@ -14,7 +14,7 @@ services:
       - "idp.mwm.local:host-gateway"
       - "llm-agent.mwm.local:host-gateway"
       - "host.docker.internal:host-gateway"
-    restart: always
+#    restart: always
 
   llm-agent:
     image: llm-agent:latest
@@ -29,7 +29,7 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       - qdrant
-    restart: always
+#    restart: always
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -39,7 +39,7 @@ services:
       - "6334:6334"
     volumes:
       - ./qdrant_data:/qdrant/storage
-    restart: always
+#    restart: always
 
   db:
     image: postgres:16-alpine
@@ -52,7 +52,7 @@ services:
       - "5432:5432"
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
-    restart: always
+#    restart: always
 
   # --- Phase 06: Observability stack ---
   loki:
@@ -64,7 +64,7 @@ services:
     volumes:
       - ./ops/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - ./loki_data:/loki
-    restart: always
+#    restart: always
 
   # Promtail 은 2025-02 deprecated / 2026-02 EOL → Grafana Alloy 로 통일
   alloy:
@@ -83,7 +83,7 @@ services:
       - /var/lib/alloy/data  # positions/WAL — 재기동 시 현 시점부터 tail (dev 만; prod 는 host bind 권장)
     depends_on:
       - loki
-    restart: always
+#    restart: always
 
   grafana:
     image: grafana/grafana:latest
@@ -138,7 +138,7 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       - loki
-    restart: always
+#    restart: always
 
 networks:
   default:
