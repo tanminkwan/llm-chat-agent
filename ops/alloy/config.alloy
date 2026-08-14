@@ -1,0 +1,107 @@
+// Grafana Alloy 설정 — Promtail (2025-02 deprecated / 2026-02 EOL) 의 후속.
+// llm-agent 컨테이너의 stdout 에서 [LLM_LOG] 라인만 추려 Loki 로 적재한다.
+// Promtail 의 docker_sd + pipeline_stages 와 동등한 동작을 River 문법으로 구성.
+
+logging {
+	level  = "warn"
+	format = "logfmt"
+}
+
+// 1) Docker 컨테이너 디스커버리
+discovery.docker "containers" {
+	host             = "unix:///var/run/docker.sock"
+	refresh_interval = "5s"
+}
+
+// 2) llm-agent 만 유지 + 라벨 정리
+discovery.relabel "llm_agent_only" {
+	targets = discovery.docker.containers.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/llm-agent"
+		action        = "keep"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_log_stream"]
+		target_label  = "stream"
+	}
+}
+
+// 3) 컨테이너 stdout 을 Docker daemon API 로 직접 tail
+//    (Promtail 과 달리 /var/lib/docker/containers 마운트가 불필요 — daemon socket 만 있으면 됨)
+loki.source.docker "llm_agent" {
+	host             = "unix:///var/run/docker.sock"
+	targets          = discovery.relabel.llm_agent_only.output
+	forward_to       = [loki.process.llm_log.receiver]
+	refresh_interval = "5s"
+}
+
+// 4) [LLM_LOG] JSON 파이프라인
+loki.process "llm_log" {
+	forward_to = [loki.write.default.receiver]
+
+	// [LLM_LOG] 가 없는 라인은 적재하지 않는다 (uvicorn access log 등 드롭)
+	// selector 안의 line filter 는 LogQL → Go string literal 두 단계 escape — `\\` 가 regex `\` 한 글자가 되도록 `\\\\` 사용.
+	stage.match {
+		selector            = "{container=\"llm-agent\"} !~ \"\\\\[LLM_LOG\\\\]\""
+		action              = "drop"
+		drop_counter_reason = "not_llm_log"
+	}
+
+	// [LLM_LOG] 라인의 JSON 본문 추출
+	stage.regex {
+		expression = "\\[LLM_LOG\\]\\s+(?P<llm_json>\\{.*\\})"
+	}
+
+	stage.json {
+		source = "llm_json"
+		expressions = {
+			type          = "type",
+			model_type    = "model_type",
+			request_id    = "request_id",
+			thread_id     = "thread_id",
+			user_id       = "user_id",
+			model         = "model",
+			search_method = "search_method",
+		}
+	}
+
+	// 저장될 라인 본문을 LLM_LOG JSON 으로 교체
+	// (Python logging prefix 제거 → Grafana 패널의 `| json` 이 그대로 동작)
+	stage.output {
+		source = "llm_json"
+	}
+
+	// 저카디널리티 라벨 (Loki 인덱스)
+	stage.labels {
+		values = {
+			type          = "",
+			model_type    = "",
+			search_method = "",
+		}
+	}
+
+	// 고카디널리티 식별자는 structured metadata 로 (Loki 3.x)
+	stage.structured_metadata {
+		values = {
+			request_id = "",
+			thread_id  = "",
+			user_id    = "",
+			model      = "",
+		}
+	}
+}
+
+loki.write "default" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+}

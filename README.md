@@ -15,7 +15,7 @@ OIDC 인증 기반의 사내용 LLM 채팅·RAG 에이전트. 사용자별 채�
 - **개인 Prompt 관리** (Phase 05.1) — 본인 시스템 프롬프트 저장·재사용, 동료가 공개한 프롬프트 조회
 - **Tool Lab / Tool Run** (Phase 07) — 사용자가 Python `handler` 와 JSON Schema 로 도구를 동적 등록, LLM 에 바인딩해 multi-iteration tool calling 시뮬레이터로 실행. `is_public` 토글로 동료에게 공유, multi-turn 대화(프론트 메모리), system 시드 도구 5개 (atomic 4 + macro 1) 기본 제공
 - **SPA UI** — 6개 화면(`/`, `/rag`, `/bulk`, `/admin`, `/toollab`, `/toollab/run`)을 단일 페이지로 통합해 화면 전환 시 작업 상태 보존
-- **운영 가시성** (Phase 06) — `[LLM_LOG]` JSON 라인을 Promtail→Loki→Grafana 로 자동 수집·시각화. Admin/User 폴더 분리 + 드릴다운 data link. Phase 07 부터는 chat·Tool Lab 양방향 본문(system/user/AI content·reasoning·tool args·tool result·final response·history)을 모두 LLM_LOG 에 노출해 Grafana 한 군데서 대화를 재구성 가능
+- **운영 가시성** (Phase 06) — `[LLM_LOG]` JSON 라인을 Alloy→Loki→Grafana 로 자동 수집·시각화. Admin/User 폴더 분리 + 드릴다운 data link. Phase 07 부터는 chat·Tool Lab 양방향 본문(system/user/AI content·reasoning·tool args·tool result·final response·history)을 모두 LLM_LOG 에 노출해 Grafana 한 군데서 대화를 재구성 가능
 
 ---
 
@@ -29,7 +29,7 @@ OIDC 인증 기반의 사내용 LLM 채팅·RAG 에이전트. 사용자별 채�
 | Vector store | Qdrant |
 | RDBMS | PostgreSQL 16 (asyncpg + SQLAlchemy 2.x) |
 | Auth (IDP) | mwm-idp (OIDC) — 외부 호스트 |
-| Observability | Loki, Promtail, Grafana |
+| Observability | Loki, Grafana Alloy, Grafana |
 
 ---
 
@@ -47,7 +47,7 @@ OIDC 인증 기반의 사내용 LLM 채팅·RAG 에이전트. 사용자별 채�
 │   │   │   └── user/     # 본인 LLM_LOG 자동 필터 (${__user.login})
 │   │   └── provisioning/ # datasource/dashboard provider 분리
 │   ├── loki/             # Loki 단일 인스턴스 설정
-│   └── promtail/         # 컨테이너 로그 → [LLM_LOG] 라인만 파싱·라벨링
+│   └── alloy/            # 컨테이너 로그 → [LLM_LOG] 라인만 파싱·라벨링 (구 promtail; 2026-02 EOL)
 ├── tests/
 ├── nginx.conf
 ├── docker-compose.yml
@@ -90,7 +90,7 @@ docker compose up -d
 
 ## 관측성 (Phase 06)
 
-Promtail 이 `llm-agent` 컨테이너의 stdout 에서 `[LLM_LOG] {json}` 라인만 추려 Loki 로 적재한다. 라인 본문은 Python logging prefix 가 제거된 순수 JSON 으로 저장되며, 라벨/메타데이터 분리는 다음과 같다.
+Grafana Alloy 가 `llm-agent` 컨테이너의 stdout 에서 `[LLM_LOG] {json}` 라인만 추려 Loki 로 적재한다 (Promtail 은 2025-02 deprecated / 2026-02 EOL — 동등한 `loki.process` 파이프라인으로 이관). 라인 본문은 Python logging prefix 가 제거된 순수 JSON 으로 저장되며, 라벨/메타데이터 분리는 다음과 같다.
 
 - **저카디널리티 라벨 (인덱스):** `container, type, model_type, search_method`
 - **Structured metadata:** `request_id, thread_id, user_id, model`
@@ -130,9 +130,11 @@ OIDC SSO 는 Phase 06.1 에서 활성화 예정이며, 그 전까지는 임시 a
 | P04.3 | Thread 개념·로깅 개선 | ✅ |
 | P05 | SPA 전환 | ✅ |
 | P05.1 | 개인 Prompt 관리 | ✅ |
-| P06 | Loki/Promtail/Grafana 관측성 | ✅ |
+| P06 | Loki/Alloy/Grafana 관측성 (구 Promtail) | ✅ |
 | P06.1 | Grafana OIDC SSO 연동 | ✅ |
 | P07 | Tool Lab — 동적 도구 등록 + LLM Tool Calling 시뮬레이터 (도구 공유 · multi-turn · 양방향 본문 로깅) | ✅ |
+| P08 | 하이브리드 REST API 인증 (API Key 위임 검증) | ✅ |
+| P09 | 비 로그인 서비스 (Standalone) 모드 지원 | ✅ |
 
 각 Phase 의 요구사항·설계서·테스트결과서는 [`docs/`](docs/) 에 있다.
 

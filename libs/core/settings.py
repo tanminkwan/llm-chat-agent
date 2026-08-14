@@ -9,9 +9,10 @@ class Settings(BaseSettings):
     )
 
     # OIDC Settings
+    NON_LOGIN_SERVICE: bool = False
     OIDC_ISSUER: str = "https://idp.mwm.local:20443"
-    OIDC_CLIENT_ID: str
-    OIDC_CLIENT_SECRET: str
+    OIDC_CLIENT_ID: Optional[str] = None
+    OIDC_CLIENT_SECRET: Optional[str] = None
     OIDC_REDIRECT_URI: str = "https://llm-agent.mwm.local:21443/auth/callback"
 
     # LLM Settings

@@ -91,6 +91,8 @@ class LLMGateway:
             "api_key": settings.CHAT_LLM_API_KEY,
             "streaming": streaming,
         }
+        if streaming:
+            kwargs["stream_options"] = {"include_usage": True}
         if settings.CHAT_LLM_BASE_URL:
             kwargs["base_url"] = settings.CHAT_LLM_BASE_URL
         if settings.CHAT_LLM_USE_TEMPERATURE:
@@ -106,6 +108,8 @@ class LLMGateway:
             "api_key": settings.REASONING_LLM_API_KEY,
             "streaming": streaming,
         }
+        if streaming:
+            kwargs["stream_options"] = {"include_usage": True}
         if settings.REASONING_LLM_BASE_URL:
             kwargs["base_url"] = settings.REASONING_LLM_BASE_URL
         # 설정에서 허용된 경우에만 temperature 적용

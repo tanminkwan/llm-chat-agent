@@ -9,16 +9,17 @@ from libs.core.settings import settings
 
 # OAuth 및 OIDC 설정을 위한 Authlib 클라이언트
 oauth = OAuth()
-oauth.register(
-    name='mwm-idp',
-    client_id=settings.OIDC_CLIENT_ID,
-    client_secret=settings.OIDC_CLIENT_SECRET,
-    server_metadata_url=f"{settings.OIDC_ISSUER}/.well-known/openid-configuration",
-    client_kwargs={
-        'scope': 'openid profile email groups',
-        'verify': False  # 자가 서명 인증서 허용
-    }
-)
+if not settings.NON_LOGIN_SERVICE:
+    oauth.register(
+        name='mwm-idp',
+        client_id=settings.OIDC_CLIENT_ID,
+        client_secret=settings.OIDC_CLIENT_SECRET,
+        server_metadata_url=f"{settings.OIDC_ISSUER}/.well-known/openid-configuration",
+        client_kwargs={
+            'scope': 'openid profile email groups',
+            'verify': False  # 자가 서명 인증서 허용
+        }
+    )
 
 security = HTTPBearer(auto_error=False)
 
@@ -38,6 +39,9 @@ async def get_current_user(
     """
     Bearer 토큰 또는 세션을 통해 사용자 정보를 반환하는 FastAPI Dependency.
     """
+    if settings.NON_LOGIN_SERVICE:
+        return UserInfo(sub="nobody", username="nobody", groups=["Admin"])
+
     # 1. Bearer 토큰 확인
     if cred and cred.credentials and cred.credentials != "null":
         token = cred.credentials
