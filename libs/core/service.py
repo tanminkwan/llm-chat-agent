@@ -274,6 +274,54 @@ class RAGService:
         )
         return res.count
 
+    async def get_knowledge_points(self,
+                                 domain_id: int,
+                                 collection_name: Optional[str] = None,
+                                 source: Optional[str] = None,
+                                 limit: int = 50) -> List[dict]:
+        """domain_id(필수) / collection / source(부분 일치) 조건으로 지식 데이터와 임베딩 벡터를 조회"""
+        if collection_name and collection_name != "all":
+            target_collections = [collection_name]
+        else:
+            cols = await self.list_collections()
+            target_collections = [c.collection_name for c in cols]
+
+        filter_obj = qmodels.Filter(
+            must=[qmodels.FieldCondition(key="domain_id", match=qmodels.MatchValue(value=domain_id))]
+        )
+
+        results = []
+        for col_name in target_collections:
+            if not self.qdrant.collection_exists(col_name):
+                continue
+
+            offset = None
+            while len(results) < limit:
+                points, offset = self.qdrant.scroll(
+                    collection_name=col_name,
+                    scroll_filter=filter_obj,
+                    limit=limit,
+                    offset=offset,
+                    with_payload=True,
+                    with_vectors=True
+                )
+                for point in points:
+                    if source and source.lower() not in str(point.payload.get("source", "")).lower():
+                        continue
+                    results.append({
+                        "id": point.id,
+                        "collection": col_name,
+                        "embedding": point.vector,
+                        **point.payload
+                    })
+                    if len(results) >= limit:
+                        break
+                if offset is None or not points:
+                    break
+
+        results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        return results[:limit]
+
     async def bulk_delete_knowledge_points(self, collection_name: str, domain_id: Optional[int] = None, source: Optional[str] = None):
         """조건에 맞는 지식 데이터 일괄 삭제"""
         must_filters = []

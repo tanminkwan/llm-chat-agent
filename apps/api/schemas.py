@@ -57,6 +57,16 @@ class SearchRequest(BaseModel):
     search_method: str = Field("vector", description="검색 알고리즘 (vector, text_matching)")
     limit: int = Field(10, description="최대 검색 결과 수")
 
+class KnowledgeItem(BaseModel):
+    id: str = Field(..., description="지식 데이터 고유 ID")
+    collection: str = Field(..., description="해당 데이터가 속한 콜렉션 ID")
+    content: str = Field(..., description="검색된 지식 내용")
+    extended_content: str = Field(..., description="상세 원문 내용")
+    domain_id: int = Field(..., description="도메인 ID")
+    source: str = Field(..., description="출처 정보")
+    created_at: str = Field(..., description="데이터 등록 일시 (ISO 8601)")
+    embedding: List[float] = Field(..., description="임베딩 벡터 값")
+
 # --- System & Auth Schemas ---
 
 class UserInfo(BaseModel):

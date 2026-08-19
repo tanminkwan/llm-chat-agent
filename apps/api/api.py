@@ -21,7 +21,7 @@ from libs.core.logging_helpers import emit_llm_log, extract_usage, rag_score_sum
 
 from .schemas import (
     CollectionCreate, CollectionRead, DomainCreate, DomainRead,
-    KnowledgeCreate, SearchResult, SearchRequest, UserInfo, ConfigResponse,
+    KnowledgeCreate, SearchResult, SearchRequest, KnowledgeItem, UserInfo, ConfigResponse,
     MessageResponse, TaskStatusResponse, DeleteCountResponse, ChatRequest,
     PromptCreate, PromptUpdate, PromptRead, ChatResponse,
     EmbeddingRequest, EmbeddingResponse
@@ -285,6 +285,18 @@ async def add_knowledge(
         return await service.add_knowledge_point(**data.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@api_router.get("/api/rag/knowledge", tags=["RAG Data"], response_model=List[KnowledgeItem], summary="지식 데이터 조회 (임베딩 포함)")
+async def get_knowledge(
+    domain_id: int = Query(..., description="도메인 필터 (필수)"),
+    collection: Optional[str] = Query(None, description="대상 콜렉션 ID (미지정 시 전체 콜렉션 대상)"),
+    source: Optional[str] = Query(None, description="출처 부분 일치(like) 검색어"),
+    limit: int = Query(50, description="최대 조회 건수"),
+    service: RAGService = Depends(get_rag_service),
+    user: UserInfo = Depends(get_current_user)
+):
+    """domain_id(필수), collection, source(부분 일치) 조건으로 지식 데이터를 조회하며, 각 결과에 임베딩 벡터를 포함합니다."""
+    return await service.get_knowledge_points(domain_id, collection, source, limit)
 
 @api_router.delete("/api/rag/knowledge/{collection_name}/{point_id}", tags=["RAG Data"], response_model=MessageResponse, summary="개별 지식 삭제")
 async def delete_knowledge(
