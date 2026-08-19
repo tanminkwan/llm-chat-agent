@@ -18,6 +18,9 @@ certs/
 .vscode/
 .idea/
 
+# Local-only compose overrides
+docker-compose.yml
+
 # Local data
 data/
 *.db
