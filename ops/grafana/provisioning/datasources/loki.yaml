@@ -13,7 +13,7 @@ datasources:
         - matcherType: label
           matcherRegex: request_id
           name: trace_admin
-          url: '$GF_SERVER_ROOT_URL/d/llm-user-drilldown?var-user_id=$${user_id}&var-request_id=$${__value.raw}&$${__url_time_range}'
+          url: '$GF_SERVER_ROOT_URL/d/llm-user-drilldown?var-virtual_user=$${virtual_user}&var-request_id=$${__value.raw}&$${__url_time_range}'
           urlDisplayLabel: 'Admin drilldown 으로 trace 보기'
         - matcherType: label
           matcherRegex: request_id

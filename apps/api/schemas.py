@@ -130,11 +130,12 @@ class ChatRequest(BaseModel):
     model_type: str = Field("chat", description="모델 타입 (chat: 일반, reasoning: 사고형/추론형)")
     system_prompt: Optional[str] = Field(None, description="시스템 프롬프트")
     temperature: Optional[float] = Field(0.7, description="창의성 조절 (0~1)")
-    thread_id: Optional[str] = Field(None, description="대화 쓰레드 ID")
+    thread_id: Optional[str] = Field(None, description="대화 쓰레드 ID (미지정 시 가상 사용자별 기본 쓰레드 user_<virtual_user>)")
 
 class ChatResponse(BaseModel):
     content: str = Field(..., description="LLM 응답 텍스트")
     usage: Optional[dict] = Field(None, description="토큰 사용량 메타데이터")
+    request_id: Optional[str] = Field(None, description="요청 ID ([LLM_LOG] 의 request_id 와 동일, X-Request-Id 헤더로도 반환)")
 
 class EmbeddingRequest(BaseModel):
     texts: List[str] = Field(..., description="임베딩할 텍스트 목록")

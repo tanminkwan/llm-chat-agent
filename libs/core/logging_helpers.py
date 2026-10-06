@@ -12,10 +12,29 @@ import datetime
 import json
 import logging
 from collections.abc import Mapping
+from contextvars import ContextVar
 from typing import Any, Optional
 
 
-_logger = logging.getLogger("llm-chat-agent")
+# [LLM_LOG] 전용 logger. Alloy → Loki 수집 대상이므로 앱 LOG_LEVEL(root) 과 무관하게
+# 항상 stdout 으로 나가도록 이 logger 만 DEBUG 로 고정한다.
+_logger = logging.getLogger("llm-chat-agent.llm_log")
+_logger.setLevel(logging.DEBUG)
+
+# 통계 집계 기준이 되는 가상 사용자. 요청 단위로 get_current_user 에서 바인딩된다.
+# - IDP 모드: 인증된 user.sub 와 동일
+# - 비 로그인 모드: X-Virtual-User 헤더 값 (없으면 user.sub == "nobody")
+_virtual_user: ContextVar[Optional[str]] = ContextVar("virtual_user", default=None)
+
+
+def set_virtual_user(value: Optional[str]) -> None:
+    """현재 요청 context 에 가상 사용자를 바인딩한다."""
+    _virtual_user.set(value)
+
+
+def get_virtual_user() -> Optional[str]:
+    """현재 요청 context 에 바인딩된 가상 사용자 (없으면 None)."""
+    return _virtual_user.get()
 
 
 def now_iso() -> str:
@@ -27,10 +46,13 @@ def emit_llm_log(level: str, payload: Mapping[str, Any]) -> None:
     """LLM_LOG 표준 emitter.
 
     - payload 에 timestamp 가 없으면 자동으로 부착한다.
+    - payload 에 virtual_user 가 없으면 context 의 가상 사용자를, 그것도 없으면
+      payload 의 user_id 를 부착한다.
     - level == "error" 면 logger.error, 그 외에는 logger.debug 로 기록한다.
     """
     enriched = dict(payload)
     enriched.setdefault("timestamp", now_iso())
+    enriched.setdefault("virtual_user", get_virtual_user() or enriched.get("user_id"))
 
     line = f"[LLM_LOG] {json.dumps(enriched, ensure_ascii=False)}"
     if level == "error":

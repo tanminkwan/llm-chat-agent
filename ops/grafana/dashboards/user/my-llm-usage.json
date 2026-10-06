@@ -21,7 +21,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (model_type) (count_over_time({container=\"llm-agent\", type=\"request\"} | json | user_id = `${__user.login}` [1m]))",
+          "expr": "sum by (model_type) (count_over_time({container=\"llm-agent\", type=\"request\"} | json | label_format virtual_user=`{{ or .virtual_user .user_id }}` | virtual_user = `${__user.login}` [1m]))",
           "legendFormat": "{{model_type}}",
           "datasource": { "type": "loki", "uid": "loki" }
         }
@@ -40,13 +40,13 @@
       "targets": [
         {
           "refId": "p50",
-          "expr": "quantile_over_time(0.5, {container=\"llm-agent\", type=\"response\"} | json | user_id = `${__user.login}` | unwrap latency_ms [5m])",
+          "expr": "quantile_over_time(0.5, {container=\"llm-agent\", type=\"response\"} | json | label_format virtual_user=`{{ or .virtual_user .user_id }}` | virtual_user = `${__user.login}` | unwrap latency_ms [5m])",
           "legendFormat": "p50",
           "datasource": { "type": "loki", "uid": "loki" }
         },
         {
           "refId": "p95",
-          "expr": "quantile_over_time(0.95, {container=\"llm-agent\", type=\"response\"} | json | user_id = `${__user.login}` | unwrap latency_ms [5m])",
+          "expr": "quantile_over_time(0.95, {container=\"llm-agent\", type=\"response\"} | json | label_format virtual_user=`{{ or .virtual_user .user_id }}` | virtual_user = `${__user.login}` | unwrap latency_ms [5m])",
           "legendFormat": "p95",
           "datasource": { "type": "loki", "uid": "loki" }
         }
@@ -62,7 +62,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{container=\"llm-agent\"} | json | user_id = `${__user.login}`",
+          "expr": "{container=\"llm-agent\"} | json | label_format virtual_user=`{{ or .virtual_user .user_id }}` | virtual_user = `${__user.login}`",
           "datasource": { "type": "loki", "uid": "loki" }
         }
       ]
@@ -77,7 +77,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{container=\"llm-agent\"} | json | user_id = `${__user.login}` | request_id = `$request_id`",
+          "expr": "{container=\"llm-agent\"} | json | label_format virtual_user=`{{ or .virtual_user .user_id }}` | virtual_user = `${__user.login}` | request_id = `$request_id`",
           "datasource": { "type": "loki", "uid": "loki" }
         }
       ]

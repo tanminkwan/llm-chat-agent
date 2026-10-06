@@ -1,5 +1,5 @@
 from typing import Optional, List
-from fastapi import APIRouter, Depends, Request, HTTPException, Query, Path, Body, BackgroundTasks, File, UploadFile, Form
+from fastapi import APIRouter, Depends, Request, HTTPException, Query, Path, Body, BackgroundTasks, File, UploadFile, Form, Header, Response
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import httpx
@@ -13,11 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from libs.core.settings import settings
+from libs.core.auth import bind_virtual_user, VIRTUAL_USER_HEADER, VIRTUAL_USER_DESCRIPTION
 from libs.core.llm import LLMGateway
 from libs.core.memory import memory_manager
 from libs.core.database import get_db, AsyncSessionLocal
 from libs.core.service import RAGService, PromptService
-from libs.core.logging_helpers import emit_llm_log, extract_usage, rag_score_summary
+from libs.core.logging_helpers import emit_llm_log, extract_usage, rag_score_summary, get_virtual_user
 
 from .schemas import (
     CollectionCreate, CollectionRead, DomainCreate, DomainRead,
@@ -33,12 +34,33 @@ api_router = APIRouter()
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
+# 채팅 응답에 request_id 를 실어 보내는 헤더. [LLM_LOG] 의 request_id 와 동일한 값.
+REQUEST_ID_HEADER = "X-Request-Id"
+
+
+def _default_thread_id(user: UserInfo) -> str:
+    """thread_id 미지정 시 기본 쓰레드. 가상 사용자별로 분리한다.
+    (IDP 모드에서는 virtual_user == user.sub 이므로 기존과 동일)"""
+    return f"user_{get_virtual_user() or user.sub}"
+
 async def get_current_user(
-    request: Request, 
-    token: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme)
+    request: Request,
+    token: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    x_virtual_user: Optional[str] = Header(
+        None, alias=VIRTUAL_USER_HEADER, description=VIRTUAL_USER_DESCRIPTION
+    ),
 ) -> UserInfo:
-    """세션 또는 API Key(Bearer)에서 사용자 정보를 가져오는 의존성 주입 함수"""
-    
+    """세션 또는 API Key(Bearer)에서 사용자 정보를 가져오는 의존성 주입 함수.
+    확정된 사용자 기준으로 가상 사용자를 요청 context 에 바인딩한다."""
+    user = await _authenticate(request, token)
+    bind_virtual_user(user.sub, x_virtual_user)
+    return user
+
+
+async def _authenticate(
+    request: Request,
+    token: Optional[HTTPAuthorizationCredentials],
+) -> UserInfo:
     if settings.NON_LOGIN_SERVICE:
         return UserInfo(
             sub="nobody",
@@ -456,7 +478,7 @@ async def chat(
     if not any(role in user.groups for role in ["Admin", "User"]):
         raise HTTPException(status_code=403, detail="사용 권한이 없습니다.")
 
-    actual_thread_id = request.thread_id or f"user_{user.sub}"
+    actual_thread_id = request.thread_id or _default_thread_id(user)
     
     if request.model_type == "reasoning":
         llm = LLMGateway.get_reasoning_llm(temperature=request.temperature)
@@ -464,11 +486,11 @@ async def chat(
         llm = LLMGateway.get_chat_llm(temperature=request.temperature)
     
     history = memory_manager.get_thread_history(actual_thread_id)
-    
+    request_id = str(uuid.uuid4())[:8] # 고유 요청 ID (Trace ID)
+
     async def event_generator():
         full_response = ""
         final_chunk = None
-        request_id = str(uuid.uuid4())[:8] # 고유 요청 ID (Trace ID)
         user_id = user.sub
         started_at = time.perf_counter()
         system_prompt = request.system_prompt or "당신은 AI 어시스턴트입니다."
@@ -530,10 +552,15 @@ async def chat(
         history.add_ai_message(full_response)
         yield "data: [DONE]\n\n"
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={REQUEST_ID_HEADER: request_id},
+    )
 
 @api_router.post("/api/chat/sync", tags=["Chat"], response_model=ChatResponse, summary="LLM 대화 (Single Response)")
 async def chat_sync(
+    response: Response,
     user: UserInfo = Depends(get_current_user),
     request: ChatRequest = Body(...)
 ):
@@ -541,7 +568,7 @@ async def chat_sync(
     if not any(role in user.groups for role in ["Admin", "User"]):
         raise HTTPException(status_code=403, detail="사용 권한이 없습니다.")
 
-    actual_thread_id = request.thread_id or f"user_{user.sub}"
+    actual_thread_id = request.thread_id or _default_thread_id(user)
     
     if request.model_type == "reasoning":
         llm = LLMGateway.get_reasoning_llm(streaming=False, temperature=request.temperature)
@@ -551,6 +578,7 @@ async def chat_sync(
     history = memory_manager.get_thread_history(actual_thread_id)
     
     request_id = str(uuid.uuid4())[:8]
+    response.headers[REQUEST_ID_HEADER] = request_id
     user_id = user.sub
     started_at = time.perf_counter()
     system_prompt = request.system_prompt or "당신은 AI 어시스턴트입니다."
@@ -566,7 +594,7 @@ async def chat_sync(
     })
 
     try:
-        response = await llm.ainvoke(messages)
+        llm_response = await llm.ainvoke(messages)
     except Exception as e:
         emit_llm_log("error", {
             "request_id": request_id,
@@ -576,10 +604,12 @@ async def chat_sync(
             "error": str(e),
             "latency_ms": int((time.perf_counter() - started_at) * 1000),
         })
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500, detail=str(e), headers={REQUEST_ID_HEADER: request_id}
+        )
 
-    full_response = str(response.content)
-    usage = extract_usage(response)
+    full_response = str(llm_response.content)
+    usage = extract_usage(llm_response)
 
     emit_llm_log("debug", {
         "request_id": request_id,
@@ -597,7 +627,7 @@ async def chat_sync(
     history.add_user_message(request.message)
     history.add_ai_message(full_response)
     
-    return ChatResponse(content=full_response, usage=usage)
+    return ChatResponse(content=full_response, usage=usage, request_id=request_id)
 
 @api_router.post("/api/embeddings", tags=["LLM"], response_model=EmbeddingResponse, summary="텍스트 임베딩 추출")
 async def get_embeddings_api(

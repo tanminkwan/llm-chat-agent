@@ -1,11 +1,13 @@
+import re
 from typing import List, Optional
-from fastapi import HTTPException, Security, Depends, Request
+from fastapi import HTTPException, Security, Depends, Request, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from authlib.integrations.starlette_client import OAuth
 from jose import jwt, JWTError
 import httpx
 
 from libs.core.settings import settings
+from libs.core.logging_helpers import set_virtual_user
 
 # OAuth 및 OIDC 설정을 위한 Authlib 클라이언트
 oauth = OAuth()
@@ -32,13 +34,55 @@ class UserInfo:
         self.is_admin = "Admin" in groups
         self.is_user = "User" in groups or self.is_admin
 
+# 가상 사용자 (통계 집계 기준). 비 로그인 모드에서만 요청 헤더로 지정 가능.
+VIRTUAL_USER_HEADER = "X-Virtual-User"
+VIRTUAL_USER_DESCRIPTION = (
+    "가상 사용자 ID (로그·통계 집계용). 비 로그인 모드에서만 적용되며 "
+    "IDP 모드에서는 무시되고 인증된 사용자로 기록됩니다."
+)
+_VIRTUAL_USER_PATTERN = re.compile(r"[A-Za-z0-9._@-]{1,64}")
+
+
+def bind_virtual_user(user_sub: str, header_value: Optional[str]) -> None:
+    """요청 context 에 가상 사용자를 바인딩한다.
+
+    - 비 로그인 모드 + 헤더 지정: 헤더 값 (형식 오류 시 400)
+    - 그 외 (IDP 모드, 헤더 미지정): 인증된 user_sub
+
+    의존성을 함수로 직접 호출하면 header_value 에 Header() 기본값 객체가 들어오므로
+    str 이 아닌 값은 미지정으로 취급한다.
+    """
+    if settings.NON_LOGIN_SERVICE and isinstance(header_value, str) and header_value:
+        if not _VIRTUAL_USER_PATTERN.fullmatch(header_value):
+            raise HTTPException(
+                status_code=400,
+                detail=f"{VIRTUAL_USER_HEADER} must match [A-Za-z0-9._@-]{{1,64}}",
+            )
+        set_virtual_user(header_value)
+    else:
+        set_virtual_user(user_sub)
+
+
 async def get_current_user(
     request: Request,
-    cred: Optional[HTTPAuthorizationCredentials] = Security(security)
+    cred: Optional[HTTPAuthorizationCredentials] = Security(security),
+    x_virtual_user: Optional[str] = Header(
+        None, alias=VIRTUAL_USER_HEADER, description=VIRTUAL_USER_DESCRIPTION
+    ),
 ) -> UserInfo:
     """
     Bearer 토큰 또는 세션을 통해 사용자 정보를 반환하는 FastAPI Dependency.
+    확정된 사용자 기준으로 가상 사용자를 요청 context 에 바인딩한다.
     """
+    user = await _authenticate(request, cred)
+    bind_virtual_user(user.sub, x_virtual_user)
+    return user
+
+
+async def _authenticate(
+    request: Request,
+    cred: Optional[HTTPAuthorizationCredentials],
+) -> UserInfo:
     if settings.NON_LOGIN_SERVICE:
         return UserInfo(sub="nobody", username="nobody", groups=["Admin"])
 

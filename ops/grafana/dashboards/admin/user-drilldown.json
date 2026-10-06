@@ -9,7 +9,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "사용자별 요청 수 Top 20 (선택 기간) — user_id 셀 클릭 시 아래 두 패널 자동 필터",
+      "title": "가상 사용자별 요청 수 Top 20 (선택 기간) — virtual_user 셀 클릭 시 아래 두 패널 자동 필터",
       "type": "table",
       "datasource": { "type": "loki", "uid": "loki" },
       "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
@@ -19,7 +19,7 @@
           "links": [
             {
               "title": "이 사용자로 LLM_LOG 필터",
-              "url": "/d/llm-user-drilldown?var-user_id=${__data.fields.user_id}&${__url_time_range}",
+              "url": "/d/llm-user-drilldown?var-virtual_user=${__data.fields.virtual_user}&${__url_time_range}",
               "targetBlank": false
             }
           ]
@@ -37,7 +37,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (user_id) (count_over_time({container=\"llm-agent\", type=~\"request|rag_search_request|toollab_run_request\"} | json [$__interval]))",
+          "expr": "sum by (virtual_user) (count_over_time({container=\"llm-agent\", type=~\"request|rag_search_request|toollab_run_request\"} | json | label_format virtual_user=`{{ or .virtual_user .user_id }}` [$__interval]))",
           "datasource": { "type": "loki", "uid": "loki" },
           "queryType": "range"
         }
@@ -48,7 +48,7 @@
           "id": "groupBy",
           "options": {
             "fields": {
-              "user_id": { "operation": "groupby", "aggregations": [] },
+              "virtual_user": { "operation": "groupby", "aggregations": [] },
               "Time": { "operation": "aggregate", "aggregations": ["max"] },
               "Value": { "operation": "aggregate", "aggregations": ["sum"] }
             }
@@ -58,7 +58,7 @@
           "id": "filterByValue",
           "options": {
             "filters": [
-              { "fieldName": "user_id", "config": { "id": "isNotNull", "options": {} } }
+              { "fieldName": "virtual_user", "config": { "id": "isNotNull", "options": {} } }
             ],
             "type": "include",
             "match": "all"
@@ -68,7 +68,7 @@
           "id": "organize",
           "options": {
             "excludeByName": {},
-            "indexByName": { "user_id": 0, "Value (sum)": 1, "Time (max)": 2 },
+            "indexByName": { "virtual_user": 0, "Value (sum)": 1, "Time (max)": 2 },
             "renameByName": {
               "Value (sum)": "Value",
               "Time (max)": "마지막 활동"
@@ -86,7 +86,7 @@
     },
     {
       "id": 2,
-      "title": "선택한 user_id 의 모든 LLM_LOG",
+      "title": "선택한 virtual_user 의 모든 LLM_LOG",
       "type": "logs",
       "datasource": { "type": "loki", "uid": "loki" },
       "gridPos": { "h": 14, "w": 12, "x": 12, "y": 0 },
@@ -94,7 +94,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{container=\"llm-agent\"} | json | user_id = `$user_id`",
+          "expr": "{container=\"llm-agent\"} | json | label_format virtual_user=`{{ or .virtual_user .user_id }}` | virtual_user = `$virtual_user`",
           "datasource": { "type": "loki", "uid": "loki" }
         }
       ]
@@ -121,9 +121,9 @@
   "templating": {
     "list": [
       {
-        "name": "user_id",
+        "name": "virtual_user",
         "type": "textbox",
-        "label": "User ID (OIDC sub)",
+        "label": "Virtual User (IDP 모드: OIDC sub)",
         "current": { "value": "", "text": "" },
         "query": ""
       },

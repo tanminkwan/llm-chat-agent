@@ -69,6 +69,7 @@ loki.process "llm_log" {
 			request_id    = "request_id",
 			thread_id     = "thread_id",
 			user_id       = "user_id",
+			virtual_user  = "virtual_user",
 			model         = "model",
 			search_method = "search_method",
 		}
@@ -92,10 +93,11 @@ loki.process "llm_log" {
 	// 고카디널리티 식별자는 structured metadata 로 (Loki 3.x)
 	stage.structured_metadata {
 		values = {
-			request_id = "",
-			thread_id  = "",
-			user_id    = "",
-			model      = "",
+			request_id   = "",
+			thread_id    = "",
+			user_id      = "",
+			virtual_user = "",
+			model        = "",
 		}
 	}
 }
